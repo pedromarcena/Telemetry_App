@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telemetria Harpia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --room:#1d2126; --panel:#30353c; --plate:#262a30; --bezel:#181b1f; --line:#3c424a;
+  --ink:#e6e9ed; --mute:#8f99a6; --dim:#5c6570;
+  --ok:#46c87c; --warn:#f0a63a; --bad:#e5484d; --data:#62c3f5; --nav:#d65db1;
+  --r:6px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--room);color:var(--ink)}
+body{font:14px/1.45 'B612',system-ui,-apple-system,'Segoe UI',sans-serif;font-variant-numeric:tabular-nums;padding:14px 16px 28px}
+button,select,input{font:inherit;color:var(--ink)}
+:focus-visible{outline:2px solid var(--data);outline-offset:2px}
+.wrap{max-width:1480px;margin:0 auto}
+
+/* ---------- barra superior */
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-bottom:12px}
+h1{font-size:17px;font-weight:700;margin:0;letter-spacing:.2px}
+h1 small{display:block;font-size:12px;font-weight:400;color:var(--mute)}
+.seg{display:inline-flex;background:var(--bezel);border:1px solid var(--line);border-radius:var(--r);padding:3px}
+.seg button{background:none;border:0;padding:6px 14px;border-radius:4px;cursor:pointer;color:var(--mute)}
+.seg button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.btn{background:var(--plate);border:1px solid var(--line);border-radius:var(--r);padding:7px 12px;cursor:pointer;white-space:nowrap}
+.btn:hover:not(:disabled){border-color:var(--data)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.rec{border-color:var(--bad)}
+.btn.rec::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-right:7px;vertical-align:1px}
+.btn.rec.on::before{animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.15}}
+select{background:var(--plate);border:1px solid var(--line);border-radius:var(--r);padding:6px 8px}
+.ctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:1;min-width:280px}
+.ctl[hidden]{display:none}
+.note{color:var(--mute);font-size:12.5px}
+
+/* ---------- anunciadores */
+.ann{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;background:var(--bezel);border:1px solid var(--line);border-radius:var(--r);padding:6px;margin-bottom:12px}
+.lt{background:#22262b;border:1px solid #2c3137;border-radius:3px;padding:5px 6px;text-align:center;min-height:46px;display:flex;flex-direction:column;justify-content:center;transition:background .25s,color .25s,box-shadow .25s}
+.lt b{font-size:11.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#4d555f}
+.lt span{font-size:11.5px;color:#4d555f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lt.g{background:#173323;border-color:#255a3c;box-shadow:0 0 12px rgba(70,200,124,.18) inset}
+.lt.g b,.lt.g span{color:#7ee2a6}
+.lt.a{background:#3a2a12;border-color:#6b4a17;box-shadow:0 0 12px rgba(240,166,58,.2) inset}
+.lt.a b,.lt.a span{color:#ffc56b}
+.lt.r{background:#3d1719;border-color:#7a2a2e;box-shadow:0 0 14px rgba(229,72,77,.25) inset}
+.lt.r b,.lt.r span{color:#ff8a8d}
+.lt.b{background:#142c3d;border-color:#21506e;box-shadow:0 0 12px rgba(98,195,245,.2) inset}
+.lt.b b,.lt.b span{color:#8fd6fb}
+
+/* ---------- grade principal */
+main{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:12px;align-items:start}
+.col{display:grid;gap:12px;min-width:0}
+#panel{background:var(--panel);border:3px solid #22262b;border-radius:18px;padding:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;position:relative}
+#panel .cell{background:#50565e;border-radius:10px;padding:6px;box-shadow:inset 0 0 0 2px #2b3036}
+#panel svg{width:100%;height:auto;display:block}
+body.drag #panel{outline:2px dashed var(--data);outline-offset:4px}
+.ro{display:flex;flex-wrap:wrap;gap:4px 16px;justify-content:center;color:var(--mute);font-size:12.5px}
+.ro b{color:var(--ink);font-weight:400}
+
+.plate{background:var(--plate);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;min-width:0}
+.plate h2{font-size:13px;font-weight:700;margin:0 0 8px;color:var(--ink);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.plate h2 small{font-weight:400;color:var(--mute);font-size:12px}
+.plates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+dl{margin:0;display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13px}
+dt{color:var(--mute)}
+dd{margin:0;text-align:right;white-space:nowrap}
+dd i{font-style:normal;color:var(--mute);font-size:12px;margin-left:3px}
+dd.ok{color:#7ee2a6} dd.warn{color:#ffc56b} dd.bad{color:#ff8a8d}
+
+.transport{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#sl{flex:1;min-width:180px;accent-color:var(--data)}
+#tm{min-width:96px;text-align:right}
+
+/* trajetória, gráficos e barras */
+canvas{display:block;width:100%}
+#track{height:250px;background:#1f2328;border-radius:4px}
+.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.chart select{max-width:100%;margin-bottom:6px;font-size:12.5px;padding:4px 6px}
+.chart canvas{height:132px;background:#1f2328;border-radius:4px}
+.bars{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px 8px}
+.bar{font-size:11.5px;color:var(--mute)}
+.bar .tr{height:7px;background:#1b1e22;border-radius:2px;position:relative;margin-top:2px;overflow:hidden}
+.bar .tr i{position:absolute;top:0;bottom:0;left:50%;background:var(--data)}
+.bar .tr::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:#3a4048}
+.defl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px}
+.defl .bar .tr{height:10px}
+.defl .bar .tr i{background:var(--warn)}
+.health{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;margin-bottom:8px}
+.dev{font-size:11px;text-align:center;padding:3px 2px;border-radius:3px;background:#22262b;color:var(--dim);border:1px solid #2c3137}
+.dev.ok{color:#7ee2a6;border-color:#255a3c}
+.dev.bad{color:#ff8a8d;border-color:#7a2a2e;background:#3d1719}
+#console{height:150px;overflow:auto;background:#1b1e22;border-radius:4px;padding:6px 8px;font-size:12px;line-height:1.5;color:#b9c2cc;white-space:pre-wrap;word-break:break-word;margin:0}
+#console .t{color:var(--dim)}
+.empty{color:var(--mute);font-size:13px;text-align:center;padding:6px 0 0}
+
+dialog{background:var(--plate);color:var(--ink);border:1px solid var(--line);border-radius:10px;max-width:640px;width:calc(100% - 32px);padding:16px 18px}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+dialog h3{margin:0 0 10px;font-size:15px}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px}
+.form label{display:grid;gap:3px;font-size:12.5px;color:var(--mute)}
+.form input{background:var(--bezel);border:1px solid var(--line);border-radius:4px;padding:6px 8px}
+.form fieldset{grid-column:1/-1;border:1px solid var(--line);border-radius:6px;display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:6px 10px;padding:8px 10px}
+.form legend{color:var(--mute);font-size:12.5px;padding:0 4px}
+.dlg-act{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+
+@media (max-width:1100px){main{grid-template-columns:1fr}.ann{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:620px){
+  body{padding:10px 16px 24px}
+  #panel{grid-template-columns:repeat(2,1fr);padding:10px;gap:8px}
+  .plates,.charts{grid-template-columns:1fr}
+  .ann{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bars{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .health{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .form{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Estação de telemetria<small>Harpia AeroDesign — UFABC</small></h1>
+  <div class="seg" role="group" aria-label="Modo">
+    <button id="mNom" aria-pressed="true">Nominal</button>
+    <button id="mRep" aria-pressed="false">Replay</button>
+  </div>
+  <div class="ctl" id="ctlNom">
+    <button class="btn" id="bConn">Conectar porta serial</button>
+    <select id="baud" title="Taxa da porta (a USB nativa da estação ignora este valor)">
+      <option value="921600">921600 baud</option><option value="460800">460800</option><option value="115200">115200</option>
+    </select>
+    <button class="btn" id="bDemo">Voo de demonstração</button>
+    <button class="btn rec" id="bRec" disabled>Gravar sessão</button>
+    <button class="btn" id="bGsRec" disabled title="Envia MODE REC à estação de solo">Gravar no cartão da estação</button>
+    <button class="btn" id="bGsStop" disabled title="Envia MODE RX à estação de solo">Parar gravação da estação</button>
+  </div>
+  <div class="ctl" id="ctlRep" hidden>
+    <label class="btn">Abrir arquivo<input id="file" type="file" accept=".bin,.BIN,.csv,.xlsx,.xls" hidden></label>
+    <button class="btn" id="bExport" disabled>Exportar CSV</button>
+    <span class="note" id="fileInfo">Arraste aqui um FLT_*.BIN, GND_*.BIN, .csv ou .xlsx.</span>
+  </div>
+  <button class="btn" id="bCfg">Ajustes</button>
+</header>
+
+<section class="ann" id="ann" aria-label="Anunciadores">
+  <div class="lt" id="aFlt"><b>Voo</b><span>sem dados</span></div>
+  <div class="lt" id="aGs"><b>Solo</b><span>sem dados</span></div>
+  <div class="lt" id="aLink"><b>LoRa</b><span>—</span></div>
+  <div class="lt" id="aRc"><b>RC ELRS</b><span>—</span></div>
+  <div class="lt" id="aGnss"><b>GNSS</b><span>—</span></div>
+  <div class="lt" id="aSd"><b>SD voo</b><span>—</span></div>
+  <div class="lt" id="aFault"><b>Falhas</b><span>—</span></div>
+  <div class="lt" id="aBat"><b>Bateria</b><span>—</span></div>
+</section>
+
+<main>
+  <div class="col">
+    <div id="panel"></div>
+    <div class="plate" id="transportBox">
+      <div class="transport" id="trRep" hidden>
+        <button class="btn" id="pp" disabled>Reproduzir</button>
+        <input id="sl" type="range" min="0" max="1" step="0.01" value="0" disabled aria-label="Posição no voo">
+        <span id="tm">0,00 s</span>
+        <select id="sp" title="Velocidade"><option value="0.25">0,25×</option><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="10">10×</option></select>
+        <label class="note"><input id="lp" type="checkbox" checked> repetir</label>
+      </div>
+      <div class="transport" id="trNom">
+        <span class="note" id="liveInfo">Conecte a estação de solo (porta USB) ou a placa de voo (porta UART, bancada), ou rode o voo de demonstração.</span>
+      </div>
+      <div class="ro" id="ro"></div>
+    </div>
+    <div class="charts" id="charts"></div>
+  </div>
+
+  <div class="col">
+    <div class="plates">
+      <section class="plate"><h2>Ar e atmosfera</h2><dl id="dAir"></dl></section>
+      <section class="plate"><h2>Desempenho</h2><dl id="dPerf"></dl></section>
+      <section class="plate"><h2>Energia</h2><dl id="dEn"></dl></section>
+      <section class="plate"><h2>Enlaces</h2><dl id="dLink"></dl></section>
+    </div>
+    <section class="plate"><h2>Navegação <small id="navNote">norte para cima</small></h2>
+      <canvas id="track" aria-label="Trajetória vista de cima"></canvas>
+      <dl id="dNav" style="margin-top:8px;grid-template-columns:1fr auto 1fr auto"></dl>
+    </section>
+    <section class="plate"><h2>Comandos e superfícies <small>µs e graus</small></h2>
+      <div class="bars" id="rc"></div>
+      <div class="defl" id="defl"></div>
+    </section>
+    <section class="plate"><h2>Sistema <small id="sysNote"></small></h2>
+      <div class="health" id="health"></div>
+      <dl id="dSys"></dl>
+    </section>
+    <section class="plate"><h2>Console</h2><pre id="console"></pre></section>
+  </div>
+</main>
+</div>
+
+<dialog id="dlg">
+  <form method="dialog" id="cfgForm">
+    <h3>Ajustes</h3>
+    <div class="form">
+      <label>Massa da aeronave (kg)<input name="mass" type="number" step="0.01" min="0"></label>
+      <label>Área alar (m²)<input name="wing" type="number" step="0.001" min="0"></label>
+      <label>Células da bateria de propulsão<input name="cellsM" type="number" min="1" max="14"></label>
+      <label>Células da bateria de comando<input name="cellsC" type="number" min="1" max="6"></label>
+      <label>Temperatura externa (°C, vazio = usar T do pacote)<input name="oat" type="text" inputmode="decimal"></label>
+      <label>Janela dos gráficos (s)<input name="win" type="number" min="5" max="600"></label>
+      <label>Velocidade de estol (kt)<input name="stallKt" type="number" step="0.1"></label>
+      <label>Velocidade nunca exceder (kt)<input name="vneKt" type="number" step="0.1"></label>
+      <fieldset><legend>Sensores de deflexão: nome, tensão em 0° (V), sensibilidade (°/V)</legend>
+        <input name="fn0"><input name="fv0" type="number" step="0.0001"><input name="fk0" type="number" step="0.1">
+        <input name="fn1"><input name="fv1" type="number" step="0.0001"><input name="fk1" type="number" step="0.1">
+        <input name="fn2"><input name="fv2" type="number" step="0.0001"><input name="fk2" type="number" step="0.1">
+        <input name="fn3"><input name="fv3" type="number" step="0.0001"><input name="fk3" type="number" step="0.1">
+      </fieldset>
+    </div>
+    <p class="note">A massa e a área alar habilitam o coeficiente de sustentação e a potência excedente. Na calibração das deflexões, use “Zerar deflexões” com as superfícies neutras.</p>
+    <div class="dlg-act">
+      <button class="btn" value="zero" id="bZero">Zerar deflexões</button>
+      <button class="btn" value="cancel">Cancelar</button>
+      <button class="btn" value="ok">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+'use strict';
+/* =====================================================================
+   Telemetry_App — Estação de telemetria Harpia AeroDesign
+   Modo nominal: Web Serial (estação de solo pela USB nativa, ou placa de
+   voo pela UART em bancada) ou voo de demonstração gerado no navegador.
+   Modo replay: FLT_*.BIN (placa de voo), GND_*.BIN (estação / sessões
+   gravadas por este aplicativo), .csv e .xlsx (inclusive o formato do
+   simulador: t, phi, theta, psi, Vinf, h, zdot, psidot, xddot, yddot).
+   Protocolo: lib/telemetry_protocol/telemetry_packet.h dos firmwares.
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const cl = (x, a, b) => Math.min(b, Math.max(a, x));
+const fin = Number.isFinite;
+const D2R = Math.PI / 180, R2D = 180 / Math.PI, G = 9.80665;
+const KT = 1.943844, FT = 3.28084, FPM = 196.8504;
+const wrap360 = a => ((a % 360) + 360) % 360;
+const wrapPi = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a <= -Math.PI) a += 2 * Math.PI; return a; };
+const nf = (v, d = 1) => fin(v) ? v.toLocaleString('pt-BR', {minimumFractionDigits: d, maximumFractionDigits: d}) : '—';
+
+/* ---------------------------------------------------------- ajustes */
+const DEF = {
+  mass: 0, wing: 0, cellsM: 6, cellsC: 2, oat: '', win: 30,
+  asiMax: 80, stallKt: 23.3, vneKt: 64.8, vsiMax: 2000, pitchPx: 2.0, stdRate: 3,
+  flx: [{n: 'Aileron D', v0: 0.4545, k: 120}, {n: 'Aileron E', v0: 0.4545, k: 120},
+        {n: 'Profundor', v0: 0.4545, k: 120}, {n: 'Leme', v0: 0.4545, k: 120}],
+  charts: ['h', 'eas', 'Pm', 'nz'],
+  sign: {phi: 1, theta: 1, psi: 1},   // inverta (-1) se algum sinal do arquivo legado estiver trocado
+};
+let CFG = (() => {
+  try { const s = JSON.parse(localStorage.getItem('harpia_tlm_cfg') || 'null'); if (s) return Object.assign(structuredClone(DEF), s); } catch (e) {}
+  return structuredClone(DEF);
+})();
+const saveCfg = () => { try { localStorage.setItem('harpia_tlm_cfg', JSON.stringify(CFG)); } catch (e) {} };
+
+/* ---------------------------------------------------------- protocolo */
+const F32 = ['x','y','z','phi','theta','psi','xdot','ydot','zdot','phidot','thetadot','psidot','xddot','yddot','zddot','phiddot','thetaddot','psiddot'];
+const TXPWR_MW = [0, 10, 25, 100, 500, 1000, 2000, 250, 50];
+const FLX_LSB = 1.024 / 32768;
+const FT_TELEMETRY = 0x01, FT_GS_STATUS = 0x02, FT_FLIGHT_STATUS = 0x03, FT_TEXT = 0x10;
+const FLIGHT_STATES = ['Boot', 'Autoteste', 'Calibração', 'Pronto', 'Comunicação', 'Gravação', 'Degradado', 'Depuração'];
+const GS_STATES = ['Boot', 'Autoteste', 'Pronto', 'Recepção', 'Recepção c/ gravação', 'Sem enlace', 'Degradado', 'Depuração'];
+const DEVICES = ['ACC', 'GIRO', 'BARO', 'MAG', 'PITOT', 'ADC U3', 'ADC U4', 'GNSS', 'CRSF', 'E28', 'SD'];
+const RAW = [...F32, 'h','T','P','Vinf', ...Array.from({length: 16}, (_, i) => 'ch' + (i + 1)),
+  'RSSI1','RSSI2','LQUL','SNR','TXPWR','LQDL','Um','Uc','Im','Ic','flx1','flx2','flx3','flx4','lora_rssi','lora_snr'];
+
+function decodePacket(dv, o) {
+  const s = {micros: dv.getUint32(o, true)};
+  for (let i = 0; i < 18; i++) s[F32[i]] = dv.getFloat32(o + 4 + 4 * i, true);
+  s.h = dv.getInt16(o + 76, true) * 0.1;
+  s.T = dv.getInt16(o + 78, true) * 0.01;
+  s.P = dv.getUint16(o + 80, true) + 50000;
+  s.Vinf = dv.getUint16(o + 82, true) * 0.01;
+  for (let i = 0, bit = 0; i < 16; i++, bit += 11) {            // 16 × 11 bits, LSB primeiro (CRSF)
+    const b = o + 84 + (bit >> 3), sh = bit & 7;
+    let v = dv.getUint8(b) | (dv.getUint8(b + 1) << 8);
+    if (b + 2 < o + 106) v |= dv.getUint8(b + 2) << 16;
+    s['ch' + (i + 1)] = 1500 + (((v >> sh) & 0x7FF) - 992) * 0.625;
+  }
+  s.RSSI1 = -dv.getUint8(o + 106); s.RSSI2 = -dv.getUint8(o + 107);
+  s.LQUL = dv.getUint8(o + 108); s.SNR = dv.getInt8(o + 109);
+  s.TXPWR = TXPWR_MW[dv.getUint8(o + 110)] ?? NaN; s.LQDL = dv.getUint8(o + 111);
+  s.Um = dv.getUint16(o + 112, true) * 0.001; s.Uc = dv.getUint16(o + 114, true) * 0.001;
+  s.Im = dv.getInt16(o + 116, true) * 0.005; s.Ic = dv.getInt16(o + 118, true) * 0.005;
+  for (let i = 0; i < 4; i++) s['flx' + (i + 1)] = dv.getInt16(o + 120 + 2 * i, true) * FLX_LSB;
+  return s;
+}
+function decodeFlightStatus(dv, o) {
+  return {state: dv.getUint8(o + 2), flags: dv.getUint8(o + 3), micros: dv.getUint32(o + 4, true),
+    present: dv.getUint16(o + 8, true), fault: dv.getUint16(o + 10, true), fix: dv.getUint8(o + 12),
+    numsv: dv.getUint8(o + 13), hacc: dv.getUint16(o + 14, true) / 100, file: dv.getUint16(o + 16, true),
+    ring: dv.getUint8(o + 18), op: dv.getUint8(o + 19), records: dv.getUint32(o + 20, true),
+    dropped: dv.getUint32(o + 24, true), execMax: dv.getUint16(o + 28, true), execAvg: dv.getUint16(o + 30, true),
+    txSkipped: dv.getUint16(o + 32, true), build: dv.getUint16(o + 34, true),
+    lat: dv.getInt32(o + 36, true) * 1e-7, lon: dv.getInt32(o + 40, true) * 1e-7, hmsl: dv.getInt32(o + 44, true) / 1000};
+}
+function decodeGsStatus(dv, o) {
+  return {state: dv.getUint8(o + 1), flags: dv.getUint8(o + 2), op: dv.getUint8(o + 3), uptime: dv.getUint32(o + 4, true),
+    rxOk: dv.getUint32(o + 8, true), crc: dv.getUint32(o + 12, true), lost: dv.getUint32(o + 16, true),
+    fwd: dv.getUint32(o + 20, true), sdBytes: dv.getUint32(o + 24, true), file: dv.getUint16(o + 28, true),
+    age: dv.getUint16(o + 30, true), rssi: dv.getInt16(o + 32, true) / 10, snr: dv.getInt16(o + 34, true) / 10};
+}
+function readMeta(dv, o) {   // RxMeta após o pacote
+  const r = dv.getInt16(o, true);
+  return r === -32768 ? {lora_rssi: NaN, lora_snr: NaN, cable: true} : {lora_rssi: r / 10, lora_snr: dv.getInt16(o + 2, true) / 10, gs_ms: dv.getUint32(o + 4, true)};
+}
+function crc16(u8, a, b, crc = 0xFFFF) {
+  for (let i = a; i < b; i++) { crc ^= u8[i] << 8; for (let k = 0; k < 8; k++) crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF; }
+  return crc;
+}
+function encodeFrame(type, payload) {
+  const out = new Uint8Array(payload.length + 6);
+  out[0] = 0xA5; out[1] = 0x5A; out[2] = type; out[3] = payload.length; out.set(payload, 4);
+  const c = crc16(out, 2, 4 + payload.length); out[4 + payload.length] = c & 0xFF; out[5 + payload.length] = c >> 8;
+  return out;
+}
+// Decodificador de fluxo: quadros válidos → onFrame; bytes soltos → linhas de texto
+class FrameParser {
+  constructor(onFrame, onText) { this.onFrame = onFrame; this.onText = onText; this.st = 0; this.buf = new Uint8Array(258); this.txt = ''; this.ok = 0; this.bad = 0; }
+  text(b) {
+    if (b === 10) { if (this.txt) this.onText(this.txt); this.txt = ''; }
+    else if (b >= 32 && b < 127 && this.txt.length < 200) this.txt += String.fromCharCode(b);
+  }
+  feed(u8) {
+    for (let i = 0; i < u8.length; i++) {
+      const b = u8[i];
+      switch (this.st) {
+        case 0: if (b === 0xA5) this.st = 1; else this.text(b); break;
+        case 1: if (b === 0x5A) this.st = 2; else if (b !== 0xA5) { this.st = 0; this.text(b); } break;
+        case 2: this.buf[0] = b; this.st = 3; break;
+        case 3: this.buf[1] = b; this.len = b; this.idx = 0; this.st = b ? 4 : 5; break;
+        case 4: this.buf[2 + this.idx++] = b; if (this.idx >= this.len) this.st = 5; break;
+        case 5: this.c0 = b; this.st = 6; break;
+        case 6: {
+          this.st = 0;
+          if (crc16(this.buf, 0, 2 + this.len) === (this.c0 | (b << 8))) {
+            this.ok++;
+            this.onFrame(this.buf[0], new DataView(this.buf.buffer.slice(2, 2 + this.len)), this.len);
+          } else this.bad++;
+        }
+      }
+    }
+  }
+}
+// Codificador do pacote (voo de demonstração)
+function encodePacket(s) {
+  const b = new ArrayBuffer(128), dv = new DataView(b);
+  const i16 = v => cl(Math.round(v) || 0, -32768, 32767), u16 = v => cl(Math.round(v) || 0, 0, 65535), u8 = v => cl(Math.round(v) || 0, 0, 255);
+  dv.setUint32(0, s.micros >>> 0, true);
+  F32.forEach((k, i) => dv.setFloat32(4 + 4 * i, s[k] || 0, true));
+  dv.setInt16(76, i16(s.h / 0.1), true); dv.setInt16(78, i16(s.T / 0.01), true);
+  dv.setUint16(80, u16(s.P - 50000), true); dv.setUint16(82, u16(s.Vinf / 0.01), true);
+  let acc = 0n;
+  for (let i = 0; i < 16; i++) acc |= BigInt(cl(Math.round(992 + ((s['ch' + (i + 1)] ?? 1500) - 1500) / 0.625), 0, 2047)) << BigInt(11 * i);
+  for (let i = 0; i < 22; i++) dv.setUint8(84 + i, Number((acc >> BigInt(8 * i)) & 0xFFn));
+  dv.setUint8(106, u8(-s.RSSI1)); dv.setUint8(107, u8(-s.RSSI2)); dv.setUint8(108, u8(s.LQUL)); dv.setInt8(109, cl(Math.round(s.SNR), -128, 127));
+  dv.setUint8(110, 3); dv.setUint8(111, u8(s.LQDL));
+  dv.setUint16(112, u16(s.Um / 0.001), true); dv.setUint16(114, u16(s.Uc / 0.001), true);
+  dv.setInt16(116, i16(s.Im / 0.005), true); dv.setInt16(118, i16(s.Ic / 0.005), true);
+  for (let i = 0; i < 4; i++) dv.setInt16(120 + 2 * i, i16(s['flx' + (i + 1)] / FLX_LSB), true);
+  return new Uint8Array(b);
+}
+
+/* ------------------------------------------------- parâmetros derivados */
+class Deriver {
+  constructor() { this.reset(); }
+  reset() { this.pt = NaN; this.Em = this.Qm = this.Ec = this.Qc = 0; this.wN = NaN; this.wE = NaN; this.vd = 0; this.pv = NaN; this.home = null; }
+  run(s) {
+    const dt = s.t - this.pt, ok = dt > 0 && dt < 1;
+    this.pt = s.t;
+    s.vz = -s.zdot;
+    const Tc = CFG.oat !== '' && fin(parseFloat(String(CFG.oat).replace(',', '.'))) ? parseFloat(String(CFG.oat).replace(',', '.')) : s.T;
+    if (fin(s.P) && fin(Tc)) {
+      s.rho = s.P / (287.053 * (Tc + 273.15));
+      s.hp = 44330.77 * (1 - Math.pow(s.P / 101325, 0.190263));
+      s.hd = 44330.77 * (1 - Math.pow(s.rho / 1.225, 0.234969));
+      s.isa = Tc - (15 - 0.0065 * s.hp);
+      s.mach = s.Vinf / Math.sqrt(1.4 * 287.053 * (Tc + 273.15));
+    } else s.rho = s.hp = s.hd = s.isa = s.mach = NaN;
+    const rho = fin(s.rho) ? s.rho : 1.225;
+    s.eas = s.Vinf * Math.sqrt(rho / 1.225);
+    s.q = 0.5 * rho * s.Vinf * s.Vinf;
+    s.gs = Math.hypot(s.xdot, s.ydot);
+    s.trk = fin(s.gs) && s.gs > 0.5 ? wrap360(Math.atan2(s.ydot, s.xdot) * R2D) : NaN;
+    s.gamma = fin(s.gs) && (s.gs > 1 || Math.abs(s.vz) > 0.3) ? Math.atan2(s.vz, s.gs) * R2D : 0;
+    s.alpha = s.Vinf > 5 && fin(s.vz) ? s.theta * R2D - Math.asin(cl(s.vz / s.Vinf, -1, 1)) * R2D : NaN;
+    // vento: velocidade em relação ao solo menos a velocidade do ar projetada pela atitude
+    if (s.Vinf > 5 && fin(s.xdot) && fin(s.ydot)) {
+      const vh = s.Vinf * Math.cos(s.theta);
+      const wN = s.xdot - vh * Math.cos(s.psi), wE = s.ydot - vh * Math.sin(s.psi);
+      const k = ok && fin(this.wN) ? 1 - Math.exp(-dt / 3) : 1;
+      this.wN = fin(this.wN) ? this.wN + k * (wN - this.wN) : wN;
+      this.wE = fin(this.wE) ? this.wE + k * (wE - this.wE) : wE;
+    }
+    s.wspd = Math.hypot(this.wN, this.wE);
+    s.wdir = fin(s.wspd) ? wrap360(Math.atan2(-this.wE, -this.wN) * R2D) : NaN;   // de onde sopra
+    // força específica no corpo → fator de carga e bola de derrapagem
+    const cf = Math.cos(s.phi), sf = Math.sin(s.phi), ct = Math.cos(s.theta), st = Math.sin(s.theta), cp = Math.cos(s.psi), sp = Math.sin(s.psi);
+    const fN = s.xddot || 0, fE = s.yddot || 0, fD = (fin(s.zddot) ? s.zddot : 0) - G;
+    const fby = (sf * st * cp - cf * sp) * fN + (sf * st * sp + cf * cp) * fE + sf * ct * fD;
+    const fbz = (cf * st * cp + sf * sp) * fN + (cf * st * sp - sf * cp) * fE + cf * ct * fD;
+    s.nz = -fbz / G; s.ny = fby / G;
+    s.turn = s.psidot * R2D;
+    s.radius = Math.abs(s.turn) > 2 ? s.gs / Math.abs(s.psidot) : NaN;
+    // energia específica
+    if (ok && fin(this.pv)) { const v = (s.Vinf - this.pv) / dt; this.vd += (v - this.vd) * (1 - Math.exp(-dt / 0.5)); }
+    this.pv = s.Vinf;
+    s.Eh = s.h + s.Vinf * s.Vinf / (2 * G);
+    s.Ps = s.vz + s.Vinf * this.vd / G;
+    s.CL = CFG.mass > 0 && CFG.wing > 0 && s.q > 20 ? s.nz * CFG.mass * G / (s.q * CFG.wing) : NaN;
+    s.Pex = CFG.mass > 0 ? CFG.mass * G * s.Ps : NaN;
+    // elétrica
+    s.Pm = s.Um * s.Im; s.Pc = s.Uc * s.Ic; s.Pt = s.Pm + s.Pc;
+    if (ok && fin(s.Pm)) { this.Em += s.Pm * dt / 3600; this.Qm += s.Im * dt / 3.6; }
+    if (ok && fin(s.Pc)) { this.Ec += s.Pc * dt / 3600; this.Qc += s.Ic * dt / 3.6; }
+    s.Em = this.Em; s.Qm = this.Qm; s.Ec = this.Ec; s.Qc = this.Qc;
+    s.cellM = s.Um / CFG.cellsM; s.cellC = s.Uc / CFG.cellsC;
+    s.etaP = s.Pm > 5 && fin(s.Pex) ? s.Pex / s.Pm : NaN;
+    // deflexões
+    for (let i = 0; i < 4; i++) { const c = CFG.flx[i]; s['d' + (i + 1)] = (s['flx' + (i + 1)] - c.v0) * c.k; }
+    // navegação
+    s.dist = Math.hypot(s.x, s.y);
+    if (this.home && fin(s.x)) {
+      const la = this.home.lat * D2R, e2 = 6.69437999014e-3, w = Math.sqrt(1 - e2 * Math.sin(la) ** 2);
+      s.lat = this.home.lat + s.x / (6378137 * (1 - e2) / w ** 3) * R2D;
+      s.lon = this.home.lon + s.y / (6378137 / w * Math.cos(la)) * R2D;
+    } else s.lat = s.lon = NaN;
+    return s;
+  }
+}
+const DERIVED = ['vz','rho','hp','hd','isa','mach','eas','q','gs','trk','gamma','alpha','wspd','wdir','nz','ny','turn','radius',
+  'Eh','Ps','CL','Pex','Pm','Pc','Pt','Em','Qm','Ec','Qc','cellM','cellC','etaP','d1','d2','d3','d4','dist','lat','lon'];
+const KEYS = ['t', 'micros', ...RAW, ...DERIVED];
+const ANGLE_KEYS = new Set(['psi']), DEG_WRAP = new Set(['trk', 'wdir']);
+
+/* Catálogo de variáveis (gráficos e exportação): chave, rótulo, unidade, fator, casas */
+const VARS = [
+  ['h', 'Altitude acima da decolagem', 'm', 1, 1], ['eas', 'Velocidade indicada (EAS)', 'm/s', 1, 1],
+  ['Vinf', 'Velocidade verdadeira V∞', 'm/s', 1, 1], ['gs', 'Velocidade em relação ao solo', 'm/s', 1, 1],
+  ['vz', 'Velocidade vertical', 'm/s', 1, 2], ['nz', 'Fator de carga', 'g', 1, 2], ['ny', 'Força lateral', 'g', 1, 2],
+  ['phi', 'Rolamento φ', '°', R2D, 1], ['theta', 'Arfagem θ', '°', R2D, 1], ['psi', 'Guinada ψ', '°', R2D, 1],
+  ['phidot', 'Taxa de rolamento', '°/s', R2D, 1], ['thetadot', 'Taxa de arfagem', '°/s', R2D, 1], ['psidot', 'Taxa de guinada', '°/s', R2D, 1],
+  ['phiddot', 'Aceleração angular de rolamento', '°/s²', R2D, 0], ['thetaddot', 'Aceleração angular de arfagem', '°/s²', R2D, 0],
+  ['psiddot', 'Aceleração angular de guinada', '°/s²', R2D, 0],
+  ['xddot', 'Aceleração norte', 'm/s²', 1, 2], ['yddot', 'Aceleração leste', 'm/s²', 1, 2], ['zddot', 'Aceleração para baixo', 'm/s²', 1, 2],
+  ['alpha', 'Ângulo de ataque estimado', '°', 1, 1], ['gamma', 'Ângulo de trajetória', '°', 1, 1],
+  ['CL', 'Coeficiente de sustentação', '', 1, 3], ['q', 'Pressão dinâmica', 'Pa', 1, 0], ['mach', 'Número de Mach', '', 1, 3],
+  ['Eh', 'Altura de energia', 'm', 1, 1], ['Ps', 'Potência específica excedente', 'm/s', 1, 2], ['Pex', 'Potência excedente', 'W', 1, 0],
+  ['P', 'Pressão estática', 'Pa', 1, 0], ['T', 'Temperatura', '°C', 1, 1], ['rho', 'Densidade do ar', 'kg/m³', 1, 4],
+  ['hp', 'Altitude-pressão', 'm', 1, 0], ['hd', 'Altitude-densidade', 'm', 1, 0], ['isa', 'Desvio da ISA', '°C', 1, 1],
+  ['Um', 'Tensão da propulsão', 'V', 1, 2], ['Im', 'Corrente da propulsão', 'A', 1, 2], ['Pm', 'Potência da propulsão', 'W', 1, 0],
+  ['Em', 'Energia da propulsão', 'Wh', 1, 2], ['Qm', 'Carga da propulsão', 'mAh', 1, 0], ['cellM', 'Tensão por célula (propulsão)', 'V', 1, 3],
+  ['Uc', 'Tensão do comando', 'V', 1, 2], ['Ic', 'Corrente do comando', 'A', 1, 2], ['Pc', 'Potência do comando', 'W', 1, 1], ['Qc', 'Carga do comando', 'mAh', 1, 0],
+  ['wspd', 'Vento estimado', 'm/s', 1, 1], ['wdir', 'Direção do vento (de onde sopra)', '°', 1, 0],
+  ['x', 'Posição norte', 'm', 1, 1], ['y', 'Posição leste', 'm', 1, 1], ['dist', 'Distância da origem', 'm', 1, 0], ['radius', 'Raio de curva', 'm', 1, 0],
+  ['d1', 'Deflexão 1', '°', 1, 1], ['d2', 'Deflexão 2', '°', 1, 1], ['d3', 'Deflexão 3', '°', 1, 1], ['d4', 'Deflexão 4', '°', 1, 1],
+  ['lora_rssi', 'RSSI LoRa (estação)', 'dBm', 1, 1], ['lora_snr', 'SNR LoRa (estação)', 'dB', 1, 1],
+  ['RSSI1', 'RSSI ER8 antena 1', 'dBm', 1, 0], ['LQUL', 'Qualidade do enlace RC (subida)', '%', 1, 0], ['LQDL', 'Qualidade do enlace RC (descida)', '%', 1, 0],
+  ['ch1', 'Canal 1', 'µs', 1, 0], ['ch2', 'Canal 2', 'µs', 1, 0], ['ch3', 'Canal 3', 'µs', 1, 0], ['ch4', 'Canal 4', 'µs', 1, 0],
+];
+const VAR = Object.fromEntries(VARS.map(v => [v[0], v]));
+
+/* ------------------------------------------------------- instrumentos */
+const pt = (a, r, cx = 100, cy = 100) => { a *= D2R; return [cx + r * Math.sin(a), cy - r * Math.cos(a)]; };
+const L = (a, r1, r2, w = 1.5, c = '#fff', cx = 100, cy = 100) => { const [x1, y1] = pt(a, r1, cx, cy), [x2, y2] = pt(a, r2, cx, cy); return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w}"/>`; };
+const TX = (x, y, s, fs = 9, c = '#fff', id = '', w = 400) => `<text ${id ? `id="${id}"` : ''} x="${x}" y="${y}" font-size="${fs}" font-weight="${w}" fill="${c}" text-anchor="middle" dominant-baseline="central" font-family="B612,system-ui,sans-serif">${s}</text>`;
+const tx = (a, r, s, fs = 11, c = '#fff') => { const [x, y] = pt(a, r); return TX(x, y, s, fs, c); };
+const ARC = (a1, a2, r, w, c) => { const [x1, y1] = pt(a1, r), [x2, y2] = pt(a2, r); return `<path d="M${x1} ${y1}A${r} ${r} 0 ${a2 - a1 > 180 ? 1 : 0} 1 ${x2} ${y2}" fill="none" stroke="${c}" stroke-width="${w}"/>`; };
+const BZ = '<circle cx="100" cy="100" r="98" fill="#000" stroke="#2a2a2a" stroke-width="2"/>';
+const PLANE = 'M35 92 L96 88 L100 78 L104 88 L165 92 L165 97 L104 97 L104 112 L117 118 L117 123 L100 120 L83 123 L83 118 L96 112 L96 97 L35 97 Z';
+const JET = 'M100 60 L106 90 L140 110 L140 118 L106 110 L104 132 L117 140 L117 146 L100 143 L83 146 L83 140 L96 132 L94 110 L60 118 L60 110 L94 90 Z';
+
+function buildASI() {
+  const A = v => -135 + v / CFG.asiMax * 270;
+  let s = BZ;
+  for (let v = 0; v <= CFG.asiMax; v += 5) { const M = v % 10 === 0; s += L(A(v), M ? 73 : 80, 88, M ? 2 : 1) + (M ? tx(A(v), 62, v, 10) : ''); }
+  s += ARC(A(CFG.stallKt), A(CFG.vneKt), 91, 3, '#3cc43c') + L(A(CFG.vneKt), 68, 93, 3, '#ee3333');
+  s += TX(100, 126, 'AIRSPEED', 9, '#aab') + TX(100, 138, 'KNOTS', 9, '#fff', '', 600);
+  s += `<g id="asiN"><polygon points="97.5,108 100,26 102.5,108" fill="#fff"/><circle cx="100" cy="100" r="8" fill="#555"/></g>`;
+  return s + TX(100, 160, 'IAS 0,0 m/s', 8.5, '#9fd', 'asiV') + TX(100, 172, 'TAS 0,0 m/s', 8.5, '#9fd', 'asiT');
+}
+function buildAI() {
+  const K = CFG.pitchPx; let lad = '';
+  for (let p = -30; p <= 30; p += 5) { if (!p) continue; const y = 100 - p * K, h = p % 10 === 0 ? 22 : 11;
+    lad += `<line x1="${100 - h}" y1="${y}" x2="${100 + h}" y2="${y}" stroke="#fff" stroke-width="1.2"/>` + (p % 10 === 0 ? TX(100 - h - 8, y, Math.abs(p), 7) + TX(100 + h + 8, y, Math.abs(p), 7) : ''); }
+  let roll = ''; for (const a of [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60]) roll += L(a, 84, [0, 30, 60].includes(Math.abs(a)) ? 94 : 90, 2);
+  return BZ + `<g id="aiR">${roll}</g><defs><clipPath id="aic"><circle cx="100" cy="100" r="78"/></clipPath></defs>
+  <g clip-path="url(#aic)"><g id="aiH"><rect x="-300" y="-400" width="800" height="500" fill="#4fb6ee"/><rect x="-300" y="100" width="800" height="500" fill="#a9742a"/>
+  <line x1="-300" y1="100" x2="500" y2="100" stroke="#fff" stroke-width="2"/>${lad}</g></g>
+  <polygon points="100,20 94,32 106,32" fill="#ffd400"/><path d="M56 102 H88 V110 M144 102 H112 V110" fill="none" stroke="#ffd400" stroke-width="4"/><circle cx="100" cy="102" r="3" fill="#ffd400"/>`;
+}
+function buildALT() {
+  let s = BZ;
+  for (let i = 0; i < 50; i++) { const a = i * 7.2, M = i % 5 === 0; s += L(a, M ? 76 : 83, 91, M ? 2 : 1) + (M ? tx(a, 63, i / 5, 14) : ''); }
+  return s + TX(100, 70, 'ALT', 9, '#aab') + TX(100, 82, 'FT', 8, '#aab') +
+    `<rect x="70" y="116" width="60" height="18" rx="3" fill="#111" stroke="#666"/>` + TX(100, 125, '0', 11, '#fff', 'altV', 600) + TX(100, 146, '0,0 m', 8.5, '#9fd', 'altM') +
+    `<g id="altK"><polygon points="93,100 100,50 107,100" fill="#cfd3d8"/></g><g id="altH"><polygon points="97.5,100 100,22 102.5,100" fill="#fff"/></g><circle cx="100" cy="100" r="7" fill="#444"/>`;
+}
+function buildTC() {
+  let s = BZ + `<circle cx="100" cy="90" r="64" fill="#2c2f33"/>`;
+  for (const a of [-90, 90, -110, 110]) s += L(a, 66, 80, 3, '#fff', 100, 90);
+  s += TX(26, 112, 'L', 13, '#fff', '', 700) + TX(174, 112, 'R', 13, '#fff', '', 700) + TX(100, 38, 'TURN COORDINATOR', 8, '#cfd3d8') + TX(100, 176, 'NO PITCH INFORMATION', 6, '#cfd3d8');
+  return s + `<g id="tcP"><path d="${PLANE}" fill="#fff"/></g>
+    <path d="M58 150 Q100 162 142 150" stroke="#888" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <path d="M58 150 Q100 162 142 150" stroke="#111" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <line x1="93" y1="145" x2="93" y2="167" stroke="#bbb" stroke-width="1.5"/><line x1="107" y1="145" x2="107" y2="167" stroke="#bbb" stroke-width="1.5"/>
+    <circle id="tcB" cx="100" cy="156" r="5.5" fill="#ddd" stroke="#000"/>`;
+}
+function buildDG() {
+  let s = BZ + '<g id="dgC">';
+  for (let d = 0; d < 360; d += 5) { const M30 = d % 30 === 0, M10 = d % 10 === 0;
+    s += L(d, M30 ? 76 : M10 ? 80 : 84, 92, M30 ? 2 : 1);
+    if (M30) { const lab = {0: 'N', 90: 'E', 180: 'S', 270: 'W'}[d] ?? d / 10; s += tx(d, 64, lab, 'NESW'.includes(lab) ? 15 : 12, 'NESW'.includes(lab) ? '#ffd400' : '#fff'); } }
+  s += '</g><g id="dgT"><polygon points="100,12 96,22 104,22" fill="#d65db1"/></g>';
+  return s + `<path d="${JET}" fill="none" stroke="#ffd400" stroke-width="2" stroke-linejoin="round"/><polygon points="100,18 94,6 106,6" fill="#ffd400"/>` + TX(100, 168, '000°', 10, '#ffd400', 'dgV', 600);
+}
+function buildVSI() {
+  const A = v => -90 + v / CFG.vsiMax * 160;
+  let s = BZ;
+  for (let v = -CFG.vsiMax; v <= CFG.vsiMax; v += 250) { const M = v % 500 === 0; s += L(A(v), M ? 76 : 82, 90, M ? 2 : 1); }
+  for (const v of [0, 1000, -1000, 2000, -2000]) s += tx(A(v), 64, Math.abs(v) / 1000, 15);
+  s += TX(46, 70, 'UP', 8, '#fff', '', 700) + TX(46, 132, 'DOWN', 8, '#fff', '', 700) + TX(128, 86, 'VERTICAL SPEED', 7, '#cfd3d8') + TX(128, 98, '1000 FT/MIN', 6, '#cfd3d8');
+  s += `<g id="vsiN"><polygon points="97.5,100 100,26 102.5,100" fill="#fff"/><circle cx="100" cy="100" r="7" fill="#444"/></g>`;
+  return s + TX(128, 114, '0,00 m/s', 8.5, '#9fd', 'vsiV');
+}
+function buildPanel() {
+  $('panel').innerHTML = [buildASI, buildAI, buildALT, buildTC, buildDG, buildVSI].map((f, i) =>
+    `<div class="cell"><svg viewBox="0 0 200 200" role="img" aria-label="${['Velocímetro', 'Horizonte artificial', 'Altímetro', 'Coordenador de curva', 'Giro direcional', 'Variômetro'][i]}">${f()}</svg></div>`).join('');
+}
+buildPanel();
+const rot = (id, a, cx = 100, cy = 100) => $(id).setAttribute('transform', `rotate(${a} ${cx} ${cy})`);
+function updateInstruments(s) {
+  if (!s) return;
+  const sg = s.legacy ? CFG.sign : {phi: 1, theta: 1, psi: 1};
+  const phi = sg.phi * s.phi * R2D, th = sg.theta * s.theta * R2D, psi = sg.psi * s.psi * R2D, rate = sg.psi * s.psidot * R2D;
+  const ias = fin(s.eas) ? s.eas : s.Vinf, kt = ias * KT, ft = s.h * FT, vs = s.vz * FPM;
+  rot('asiN', -135 + cl(fin(kt) ? kt : 0, 0, CFG.asiMax) / CFG.asiMax * 270);
+  $('asiV').textContent = `IAS ${nf(ias)} m/s`; $('asiT').textContent = `TAS ${nf(s.Vinf)} m/s`;
+  $('aiH').setAttribute('transform', `rotate(${-(phi || 0)} 100 100) translate(0 ${cl(th || 0, -40, 40) * CFG.pitchPx})`);
+  rot('aiR', -(phi || 0));
+  rot('altH', ((((ft || 0) % 1000) + 1000) % 1000) / 1000 * 360);
+  rot('altK', ((((ft || 0) % 10000) + 10000) % 10000) / 10000 * 360);
+  $('altV').textContent = fin(ft) ? Math.round(ft) : '—'; $('altM').textContent = `${nf(s.h)} m`;
+  rot('tcP', cl((rate || 0) / CFG.stdRate * 20, -40, 40), 100, 90);
+  const bx = cl(-(s.ny || 0) / 0.3, -1, 1), x = 100 + bx * 34;
+  $('tcB').setAttribute('cx', x); $('tcB').setAttribute('cy', 156 - 6 * Math.pow((x - 100) / 42, 2));
+  rot('dgC', -(psi || 0));
+  rot('dgT', fin(s.trk) ? s.trk - (psi || 0) : 0);
+  $('dgT').style.display = fin(s.trk) && s.gs > 2 ? '' : 'none';
+  $('dgV').textContent = String(Math.round(wrap360(psi || 0))).padStart(3, '0') + '°';
+  rot('vsiN', -90 + cl(vs || 0, -CFG.vsiMax, CFG.vsiMax) / CFG.vsiMax * 160);
+  $('vsiV').textContent = `${nf(s.vz, 2)} m/s`;
+  $('ro').innerHTML = [['φ', nf(phi) + '°'], ['θ', nf(th) + '°'], ['ψ', nf(wrap360(psi), 0) + '°'], ['n', nf(s.nz, 2) + ' g'], ['α', nf(s.alpha) + '°'], ['ψ̇', nf(rate) + '°/s']]
+    .map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join('');
+}
+window.updateInstruments = updateInstruments;
+
+/* --------------------------------------------------------- estado geral */
+let MODE = 'nom';
+const deriver = new Deriver();
+const LIVE = {samples: [], max: 18000, base: 0, prevMicros: null, t0: null, fstat: null, gstat: null, fstatT: 0, gstatT: 0, lastPkt: 0,
+  rateCount: 0, rate: 0, rateT: performance.now(), gsHist: []};
+const REP = {cols: null, n: 0, dur: 0, T: 0, playing: false, kind: '', fstat: [], gstat: [], info: ''};
+
+function consoleLine(txt, cls) {
+  const c = $('console'), d = new Date();
+  const el = document.createElement('div');
+  el.innerHTML = `<span class="t">${d.toLocaleTimeString('pt-BR')}</span> `;
+  el.appendChild(document.createTextNode(txt));
+  if (cls) el.style.color = cls;
+  c.appendChild(el);
+  while (c.childNodes.length > 400) c.removeChild(c.firstChild);
+  c.scrollTop = c.scrollHeight;
+}
+
+/* ------------------------------------------------- modo nominal (ao vivo) */
+function liveReset() {
+  LIVE.samples = []; LIVE.base = 0; LIVE.prevMicros = null; LIVE.t0 = null; LIVE.fstat = null; LIVE.gstat = null; LIVE.gsHist = [];
+  deriver.reset();
+}
+function onFrame(type, dv, len) {
+  if (type === FT_TELEMETRY && len >= 128) {
+    const s = decodePacket(dv, 0);
+    Object.assign(s, len >= 136 ? readMeta(dv, 128) : {lora_rssi: NaN, lora_snr: NaN});
+    if (LIVE.prevMicros !== null) {
+      const d = (s.micros - LIVE.prevMicros) >>> 0;
+      if (d > 0x80000000) { liveReset(); consoleLine('Placa de voo reiniciada: histórico ao vivo zerado.', '#ffc56b'); }
+      else if (s.micros < LIVE.prevMicros) LIVE.base += 4294967296;
+    }
+    LIVE.prevMicros = s.micros;
+    const tAbs = (s.micros + LIVE.base) / 1e6;
+    if (LIVE.t0 === null) LIVE.t0 = tAbs;
+    s.t = tAbs - LIVE.t0;
+    deriver.run(s);
+    LIVE.samples.push(s);
+    if (LIVE.samples.length > LIVE.max) LIVE.samples.splice(0, LIVE.samples.length - LIVE.max);
+    LIVE.lastPkt = performance.now(); LIVE.rateCount++;
+  } else if (type === FT_FLIGHT_STATUS && len >= 48) {
+    const st = decodeFlightStatus(dv, 0);
+    if (!LIVE.fstat || LIVE.fstat.state !== st.state) consoleLine(`Placa de voo: ${FLIGHT_STATES[st.state] ?? st.state}`);
+    LIVE.fstat = st; LIVE.fstatT = performance.now();
+    if (st.flags & 2) deriver.home = {lat: st.lat, lon: st.lon, hmsl: st.hmsl};
+  } else if (type === FT_GS_STATUS && len >= 36) {
+    const st = decodeGsStatus(dv, 0);
+    if (!LIVE.gstat || LIVE.gstat.state !== st.state) consoleLine(`Estação de solo: ${GS_STATES[st.state] ?? st.state}`);
+    LIVE.gstat = st; LIVE.gstatT = performance.now();
+    LIVE.gsHist.push({t: performance.now(), ok: st.rxOk, lost: st.lost});
+    while (LIVE.gsHist.length > 12) LIVE.gsHist.shift();
+  } else if (type === FT_TEXT) {
+    consoleLine(new TextDecoder().decode(new Uint8Array(dv.buffer, dv.byteOffset, len)));
+  }
+}
+const parser = new FrameParser(onFrame, t => consoleLine(t));
+
+// ---------- Web Serial
+let port = null, reader = null, recChunks = null, recBytes = 0, recStart = 0;
+function onBytes(u8) {
+  if (recChunks) { recChunks.push(u8.slice()); recBytes += u8.length; }
+  parser.feed(u8);
+}
+async function connectSerial() {
+  if (port) return disconnectSerial();
+  if (!('serial' in navigator)) { consoleLine('Este navegador não tem Web Serial. Use o Chrome ou o Edge no computador.', '#ff8a8d'); return; }
+  try {
+    stopDemo();
+    port = await navigator.serial.requestPort();
+    await port.open({baudRate: +$('baud').value, bufferSize: 1 << 16});
+    liveReset();
+    setConnUi(true);
+    consoleLine(`Porta aberta a ${$('baud').value} baud.`);
+    reader = port.readable.getReader();
+    for (;;) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      if (value) onBytes(value);
+    }
+  } catch (e) {
+    if (e && e.name !== 'NotFoundError') consoleLine('Falha na porta serial: ' + e.message, '#ff8a8d');
+  }
+  await closePort();
+}
+async function closePort() {
+  try { if (reader) { await reader.cancel().catch(() => {}); reader.releaseLock(); } } catch (e) {}
+  try { if (port) await port.close(); } catch (e) {}
+  if (port) consoleLine('Porta serial fechada.');
+  reader = null; port = null; setConnUi(false);
+}
+async function disconnectSerial() { if (reader) await reader.cancel().catch(() => {}); }
+async function sendCmd(cmd) {
+  if (!port || !port.writable) return;
+  const w = port.writable.getWriter();
+  try { await w.write(new TextEncoder().encode(cmd + '\n')); consoleLine('> ' + cmd, '#62c3f5'); } finally { w.releaseLock(); }
+}
+function setConnUi(on) {
+  $('bConn').textContent = on ? 'Desconectar' : 'Conectar porta serial';
+  $('bGsRec').disabled = $('bGsStop').disabled = !on;
+  $('bRec').disabled = !(on || demo.timer);
+}
+function toggleRec() {
+  if (!recChunks) {
+    recChunks = []; recBytes = 0; recStart = Date.now();
+    $('bRec').classList.add('on'); consoleLine('Gravando a sessão (bytes recebidos, formato GND).');
+  } else {
+    const hdr = new Uint8Array(512), dv = new DataView(hdr.buffer);
+    hdr.set(new TextEncoder().encode('HRPGND1'), 0);
+    dv.setUint16(8, 1, true); dv.setUint16(10, 512, true); dv.setUint32(12, recStart >>> 0, true);
+    hdr.set(new TextEncoder().encode('Telemetry_App 2'), 20); hdr.set(new TextEncoder().encode('Telemetry_App'), 36);
+    const blob = new Blob([hdr, ...recChunks], {type: 'application/octet-stream'});
+    const d = new Date(recStart), p = n => String(n).padStart(2, '0');
+    download(blob, `sessao_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.BIN`);
+    consoleLine(`Sessão salva (${(recBytes / 1024).toFixed(0)} KiB). Abra-a no modo Replay.`);
+    recChunks = null; $('bRec').classList.remove('on');
+  }
+  updateRecBtn();
+}
+function updateRecBtn() { $('bRec').textContent = recChunks ? `Parar e salvar (${(recBytes / 1024).toFixed(0)} KiB)` : 'Gravar sessão'; }
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+// ---------- voo de demonstração (mesmo caminho de bytes da porta serial)
+class DemoFlight {
+  constructor() { this.reset(); }
+  reset() {
+    Object.assign(this, {t: 0, N: 0, E: 0, h: 0, V: 0, psi: 60 * D2R, phi: 0, gam: 0, theta: 0, phiR: 0, gamR: 0, alpha: 0,
+      Qm: 0, Qc: 0, windK: 0, landed: false, prev: null, prevRates: [0, 0, 0], accF: [0, 0, 0], raccF: [0, 0, 0], out: {}});
+  }
+  step(dt) {
+    const t = this.t, dur = 150, wN = 2.12, wE = -2.12;
+    let phase, Vt, thr, gamC, psiC = 60 * D2R;
+    if (t < 6) [phase, Vt, thr, gamC] = ['parado', 0, 0, 0];
+    else if (t < 12.5) [phase, Vt, thr, gamC] = ['corrida', 16, 1, 0];
+    else if (t < 30) [phase, Vt, thr, gamC] = ['subida', 16, 0.85, 7 * D2R];
+    else if (t < dur - 50) { psiC = (Math.floor((t - 30) / 21) % 2 ? 240 : 60) * D2R; [phase, Vt, thr] = ['circuito', 18, 0.55]; gamC = cl(0.03 * (60 - this.h), -5 * D2R, 5 * D2R); }
+    else if (!this.landed) { [phase, Vt, thr] = ['descida', 15, 0.15]; gamC = this.h > 4 ? -6 * D2R : -1.5 * D2R; if (this.h <= 0.05 && t > dur - 45) this.landed = true; }
+    else { [phase, Vt, thr, gamC] = ['pouso', 0, 0, 0]; psiC = this.psi; }
+    let ground = ['parado', 'corrida', 'pouso'].includes(phase);
+    if (phase === 'corrida' && this.V > 13.5) ground = false;
+    this.V = Math.max(0, this.V + (Vt - this.V) / (phase === 'pouso' ? 1.5 : 2.5) * dt);
+    const phiC = ground ? 0 : cl(2 * wrapPi(psiC - this.psi), -30 * D2R, 30 * D2R);
+    if (ground) gamC = 0;
+    this.phiR += cl(phiC - this.phiR, -60 * D2R * dt, 60 * D2R * dt);
+    this.gamR += cl(gamC - this.gamR, -8 * D2R * dt, 8 * D2R * dt);
+    this.gam += (this.gamR - this.gam) * dt / (ground ? 0.3 : 1.2);
+    this.phi += (this.phiR - this.phi) * dt / 0.4;
+    if (!ground && this.V > 3) this.psi = wrapPi(this.psi + G * Math.tan(this.phi) / this.V * dt);
+    const aC = ground ? 0 : 4 * D2R + 0.04 * (1 / Math.max(Math.cos(this.phi), 0.5) - 1);
+    this.alpha += cl(aC - this.alpha, -10 * D2R * dt, 10 * D2R * dt);
+    this.theta += (this.gam + this.alpha - this.theta) * dt / 0.3;
+    this.windK += ((ground ? 0 : 1) - this.windK) * dt;
+    const van = this.V * Math.cos(this.gam) * Math.cos(this.psi), vae = this.V * Math.cos(this.gam) * Math.sin(this.psi);
+    const vn = van + this.windK * wN, ve = vae + this.windK * wE, vz = ground ? 0 : this.V * Math.sin(this.gam);
+    this.N += vn * dt; this.E += ve * dt; this.h = Math.max(0, this.h + vz * dt);
+    const cur = [vn, ve, -vz, this.phi, this.theta, this.psi];
+    const prev = this.prev || cur;
+    const aRaw = [0, 1, 2].map(i => (cur[i] - prev[i]) / dt);
+    const rates = [(this.phi - prev[3]) / dt, (this.theta - prev[4]) / dt, wrapPi(this.psi - prev[5]) / dt];
+    const kf = 1 - Math.exp(-dt / 0.03);
+    this.accF = this.accF.map((a, i) => a + kf * (aRaw[i] - a));
+    this.raccF = this.raccF.map((a, i) => a + kf * ((rates[i] - this.prevRates[i]) / dt - a));
+    this.prev = cur; this.prevRates = rates;
+    const da = cl(40 * (this.phiR - this.phi) * R2D / 30 + 4 * (phiC - this.phiR) * R2D / 30, -20, 20);
+    const de = cl(-2 + 1.5 * (this.gamR - this.gam) * R2D, -20, 20), dr = 0.25 * da;
+    const rn = () => (Math.random() - 0.5) * 2;
+    const Im = 1.5 + 48 * Math.pow(thr, 1.5) + 0.15 * rn(), Ic = 0.6 + 0.04 * (Math.abs(da) + Math.abs(de)) + 0.02 * rn();
+    this.Qm += Im * dt / 3.6; this.Qc += Ic * dt / 3.6;
+    const P = 101325 * Math.pow(1 - (760 + this.h) / 44330.77, 1 / 0.190263) + rn();
+    const d = Math.hypot(this.N, this.E), rssi = -38 - 20 * Math.log10(Math.max(d, 5) / 5) + 1.5 * rn();
+    const lq = Math.random() > 0.03 ? 100 : 88 + Math.round(10 * Math.random());
+    const s = {micros: Math.round(5e6 + t * 1e6), x: this.N, y: this.E, z: -this.h, phi: this.phi, theta: this.theta, psi: this.psi,
+      xdot: vn, ydot: ve, zdot: -vz, phidot: rates[0], thetadot: rates[1], psidot: rates[2],
+      xddot: this.accF[0], yddot: this.accF[1], zddot: this.accF[2], phiddot: this.raccF[0], thetaddot: this.raccF[1], psiddot: this.raccF[2],
+      h: this.h, T: 27 - 0.0065 * this.h, P, Vinf: this.V > 2.2 ? this.V : 0,
+      RSSI1: rssi, RSSI2: rssi - 4, LQUL: lq, SNR: cl(12 + (rssi + 60) / 4, -10, 12), LQDL: lq === 100 ? 100 : lq - 3,
+      Um: 25 - 0.022 * Im - 1.8 * this.Qm / 2200, Uc: 6.68 - 0.03 * Ic - 0.2 * this.Qc / 1100, Im, Ic,
+      flx1: 0.4545 + da / 120, flx2: 0.4545 - da / 120, flx3: 0.4545 + de / 120, flx4: 0.4545 + dr / 120,
+      ch1: 1500 + da / 20 * 500, ch2: 1500 + de / 20 * 500, ch3: 1000 + thr * 1000, ch4: 1500 + dr / 20 * 500, ch5: 1900, ch8: 1000,
+      _d: d, _phase: phase};
+    this.t += dt;
+    if (this.t > dur) this.reset();
+    return s;
+  }
+}
+const demo = {sim: null, timer: null, k: 0};
+function startDemo() {
+  if (port) return;
+  if (demo.timer) return stopDemo();
+  liveReset();
+  demo.sim = new DemoFlight(); demo.k = 0;
+  consoleLine('Voo de demonstração: pacotes sintéticos a 50 pkt/s passando pelo mesmo decodificador da porta serial.');
+  demo.timer = setInterval(() => {
+    let s;
+    for (let i = 0; i < 4; i++) s = demo.sim.step(0.005);       // 4 passos de 5 ms → 1 pacote a cada 20 ms
+    const meta = new DataView(new ArrayBuffer(8));
+    const rssi = -45 - 20 * Math.log10(Math.max(s._d, 5) / 5) + Math.random() * 2;
+    meta.setInt16(0, Math.round(rssi * 10), true); meta.setInt16(2, Math.round(cl(10 + (rssi + 75) / 3, -8, 10) * 10), true); meta.setUint32(4, Date.now() >>> 0, true);
+    const pl = new Uint8Array(136); pl.set(encodePacket(s), 0); pl.set(new Uint8Array(meta.buffer), 128);
+    onBytes(encodeFrame(FT_TELEMETRY, pl));
+    if (++demo.k % 50 === 0) {
+      const t = demo.sim.t, fs = new DataView(new ArrayBuffer(48)), st = t < 4 ? 3 : (t < 8 ? 4 : 5);
+      fs.setUint8(0, 0xA7); fs.setUint8(1, 1); fs.setUint8(2, st); fs.setUint8(3, st === 5 ? 7 : 6); fs.setUint32(4, s.micros >>> 0, true);
+      fs.setUint16(8, 0x7FF, true); fs.setUint16(10, 0, true); fs.setUint8(12, 3); fs.setUint8(13, 18); fs.setUint16(14, 90, true);
+      fs.setUint16(16, 1, true); fs.setUint8(18, 1); fs.setUint8(19, st === 5 ? 5 : 4); fs.setUint32(20, Math.max(0, (t - 8) * 2000) >>> 0, true);
+      fs.setUint16(28, 108, true); fs.setUint16(30, 71, true); fs.setInt32(36, -236418000, true); fs.setInt32(40, -465264000, true); fs.setInt32(44, 760000, true);
+      const fp = new Uint8Array(56); fp.set(new Uint8Array(fs.buffer), 0); fp.set(new Uint8Array(meta.buffer), 48);
+      onBytes(encodeFrame(FT_FLIGHT_STATUS, fp));
+      const gs = new DataView(new ArrayBuffer(36)), ok = demo.k * 2;
+      gs.setUint8(0, 1); gs.setUint8(1, 4); gs.setUint8(2, 0x0F); gs.setUint8(3, 4); gs.setUint32(4, demo.k * 20, true);
+      gs.setUint32(8, ok, true); gs.setUint32(12, Math.round(ok * 0.004), true); gs.setUint32(16, Math.round(ok * 0.012), true);
+      gs.setUint32(20, demo.k, true); gs.setUint32(24, 512 + ok * 142, true); gs.setUint16(28, 1, true); gs.setUint16(30, 12, true);
+      gs.setInt16(32, Math.round(rssi * 10), true); gs.setInt16(34, 90, true);
+      onBytes(encodeFrame(FT_GS_STATUS, new Uint8Array(gs.buffer)));
+    }
+  }, 20);
+  $('bDemo').textContent = 'Parar demonstração';
+  $('bRec').disabled = false;
+}
+function stopDemo() {
+  if (!demo.timer) return;
+  clearInterval(demo.timer); demo.timer = null;
+  $('bDemo').textContent = 'Voo de demonstração';
+  $('bRec').disabled = !port;
+  consoleLine('Demonstração encerrada.');
+}
+
+/* ------------------------------------------------------------- replay */
+function ingest(count, get, info) {
+  deriver.reset();
+  if (info && info.home) deriver.home = info.home;
+  const cols = {};
+  for (const k of KEYS) cols[k] = new Float64Array(count).fill(NaN);
+  for (let i = 0; i < count; i++) {
+    const s = deriver.run(get(i));
+    for (const k of KEYS) { const v = s[k]; if (v !== undefined) cols[k][i] = v; }
+  }
+  cols.legacy = info && info.legacy;
+  return cols;
+}
+function unwrapTimes(micros) {
+  const out = new Float64Array(micros.length); let base = 0;
+  for (let i = 0; i < micros.length; i++) {
+    if (i && micros[i] < micros[i - 1] && micros[i - 1] - micros[i] > 2147483648) base += 4294967296;
+    out[i] = (micros[i] + base) / 1e6;
+  }
+  const t0 = out[0] || 0;
+  for (let i = 0; i < out.length; i++) out[i] -= t0;
+  return out;
+}
+function loadBin(buf, name) {
+  const u8 = new Uint8Array(buf), dv = new DataView(buf);
+  const magic = new TextDecoder().decode(u8.slice(0, 7));
+  if (magic === 'HRPFLT1') {
+    const rate = dv.getUint16(14, true) || 2000, n = Math.floor((u8.length - 512) / 128);
+    const dec = Math.max(1, Math.round(rate / 100)), m = Math.ceil(n / dec);
+    const home = dv.getUint8(36) ? {lat: dv.getInt32(24, true) * 1e-7, lon: dv.getInt32(28, true) * 1e-7, hmsl: dv.getInt32(32, true) / 1000} : null;
+    const micros = new Array(m);
+    for (let i = 0; i < m; i++) micros[i] = dv.getUint32(512 + i * dec * 128, true);
+    const t = unwrapTimes(micros);
+    const cols = ingest(m, i => { const s = decodePacket(dv, 512 + i * dec * 128); s.t = t[i]; s.lora_rssi = s.lora_snr = NaN; return s; }, {home});
+    const fw = new TextDecoder().decode(u8.slice(44, 60)).replace(/\0.*$/s, '');
+    return {cols, kind: 'voo', fstat: [], gstat: [], info: `${name}: placa de voo, ${n.toLocaleString('pt-BR')} pacotes a ${rate} Hz${dec > 1 ? ` (exibindo 1 a cada ${dec})` : ''}, ${fw}`};
+  }
+  // estação de solo, sessão gravada pelo aplicativo ou fluxo cru de quadros
+  const start = magic === 'HRPGND1' ? 512 : 0;
+  const tele = [], fst = [], gst = [];
+  const p = new FrameParser((type, d, len) => {
+    if (type === FT_TELEMETRY && len >= 128) { const s = decodePacket(d, 0); Object.assign(s, len >= 136 ? readMeta(d, 128) : {lora_rssi: NaN, lora_snr: NaN}); tele.push(s); }
+    else if (type === FT_FLIGHT_STATUS && len >= 48) fst.push(decodeFlightStatus(d, 0));
+    else if (type === FT_GS_STATUS && len >= 36) gst.push(Object.assign(decodeGsStatus(d, 0), {afterPkt: tele.length}));
+  }, () => {});
+  p.feed(u8.subarray(start));
+  if (!tele.length) throw new Error('nenhum pacote de telemetria encontrado no arquivo');
+  const t = unwrapTimes(tele.map(s => s.micros));
+  const m0 = tele[0].micros;
+  for (const st of fst) st.t = (((st.micros - m0) >>> 0) / 1e6);
+  for (const st of gst) st.t = t[Math.min(st.afterPkt, t.length - 1)] ?? 0;
+  const h = fst.find(s => s.flags & 2);
+  const cols = ingest(tele.length, i => { tele[i].t = t[i]; return tele[i]; }, {home: h ? {lat: h.lat, lon: h.lon, hmsl: h.hmsl} : null});
+  const src = start ? new TextDecoder().decode(u8.slice(36, 52)).replace(/\0.*$/s, '') : 'fluxo de quadros';
+  return {cols, kind: 'solo', fstat: fst, gstat: gst, info: `${name}: ${src}, ${tele.length.toLocaleString('pt-BR')} pacotes, ${fst.length} estados da placa de voo`};
+}
+function rowsToReplay(rows, name) {
+  if (!rows.length) throw new Error('arquivo vazio');
+  const has = k => k in rows[0];
+  const num = v => typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'));
+  if (has('micros')) {     // exportação deste aplicativo (unidades SI do pacote)
+    const t = rows.map(r => num(r.t));
+    const cols = ingest(rows.length, i => { const s = {}; for (const k of ['micros', ...RAW]) s[k] = has(k) ? num(rows[i][k]) : NaN; s.t = t[i]; return s; }, {});
+    return {cols, kind: 'csv', fstat: [], gstat: [], info: `${name}: ${rows.length.toLocaleString('pt-BR')} amostras (exportação do aplicativo)`};
+  }
+  if (!has('t')) throw new Error('coluna "t" ausente');
+  // formato legado do simulador: graus, zdot positivo para cima
+  const deg = k => has(k) ? r => num(r[k]) * D2R : () => NaN;
+  const g = {phi: deg('phi'), theta: deg('theta'), psi: deg('psi'), psidot: deg('psidot')};
+  const cols = ingest(rows.length, i => {
+    const r = rows[i], s = {t: num(r.t), micros: NaN};
+    for (const k of RAW) s[k] = NaN;
+    s.phi = g.phi(r); s.theta = g.theta(r); s.psi = wrapPi(g.psi(r)); s.psidot = g.psidot(r);
+    s.Vinf = has('Vinf') ? num(r.Vinf) : NaN; s.h = has('h') ? num(r.h) : NaN; s.zdot = has('zdot') ? -num(r.zdot) : NaN;
+    s.xddot = has('xddot') ? num(r.xddot) : NaN; s.yddot = has('yddot') ? num(r.yddot) : NaN;
+    for (const k of ['x', 'y', 'xdot', 'ydot', 'zddot', 'phidot', 'thetadot', 'P', 'T', 'Um', 'Im', 'Uc', 'Ic']) if (has(k)) s[k] = num(r[k]);
+    return s;
+  }, {legacy: true});
+  return {cols, kind: 'legado', fstat: [], gstat: [], info: `${name}: ${rows.length.toLocaleString('pt-BR')} amostras (formato do simulador)`};
+}
+function parseCsv(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const delim = lines[0].includes(';') && !lines[0].includes(',') ? ';' : ',';
+  const head = lines[0].split(delim).map(h => h.trim().replace(/^"|"$/g, ''));
+  return lines.slice(1).map(l => { const v = l.split(delim), o = {}; head.forEach((h, i) => o[h] = v[i] === undefined ? '' : v[i].trim()); return o; });
+}
+async function openFile(f) {
+  if (!f) return;
+  try {
+    const buf = await f.arrayBuffer(), ext = f.name.split('.').pop().toLowerCase();
+    let r;
+    if (ext === 'csv') r = rowsToReplay(parseCsv(new TextDecoder().decode(buf)), f.name);
+    else if (ext === 'xlsx' || ext === 'xls') {
+      if (typeof XLSX === 'undefined') throw new Error('a biblioteca de planilhas não carregou (sem internet?). Salve a planilha como .csv');
+      const wb = XLSX.read(buf, {type: 'array'});
+      r = rowsToReplay(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval: ''}), f.name);
+    } else r = loadBin(buf, f.name);
+    setMode('rep');
+    Object.assign(REP, r, {n: r.cols.t.length, T: 0});
+    REP.dur = REP.n ? REP.cols.t[REP.n - 1] : 0;
+    $('sl').max = REP.dur; $('sl').disabled = $('pp').disabled = $('bExport').disabled = false;
+    $('fileInfo').textContent = r.info;
+    consoleLine(r.info);
+    setPlay(true);
+  } catch (e) {
+    $('fileInfo').textContent = 'Não foi possível ler o arquivo: ' + e.message;
+    consoleLine('Erro ao abrir o arquivo: ' + e.message, '#ff8a8d');
+  }
+}
+function idxAt(t) {
+  const a = REP.cols.t; let lo = 0, hi = REP.n - 1;
+  if (t <= a[0]) return 0;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; a[m] <= t ? lo = m : hi = m; }
+  return lo;
+}
+function repSample(T) {
+  if (!REP.cols || !REP.n) return null;
+  const c = REP.cols, i = idxAt(T), j = Math.min(i + 1, REP.n - 1);
+  const f = cl((T - c.t[i]) / ((c.t[j] - c.t[i]) || 1), 0, 1), s = {legacy: !!c.legacy};
+  for (const k of KEYS) {
+    const a = c[k][i], b = c[k][j];
+    if (ANGLE_KEYS.has(k)) s[k] = a + wrapPi(b - a) * f;
+    else if (DEG_WRAP.has(k)) s[k] = wrap360(a + (((b - a + 540) % 360) - 180) * f);
+    else s[k] = a + (b - a) * f;
+  }
+  return s;
+}
+function statusAt(list, T) { let r = null; for (const s of list) { if (s.t <= T) r = s; else break; } return r; }
+let playLast = performance.now();
+function setPlay(on) { REP.playing = on && !!REP.cols; $('pp').textContent = REP.playing ? 'Pausar' : 'Reproduzir'; playLast = performance.now(); }
+function exportCsv() {
+  if (!REP.cols) return;
+  const c = REP.cols, keys = ['t', 'micros', ...RAW], der = VARS.filter(v => DERIVED.includes(v[0]));
+  const head = [...keys, ...der.map(v => `${v[0]}[${v[2] || '-'}]`)].join(',');
+  const lines = [head];
+  for (let i = 0; i < REP.n; i++) {
+    const row = keys.map(k => fin(c[k][i]) ? +c[k][i].toPrecision(9) : '');
+    for (const v of der) { const x = c[v[0]][i] * v[3]; row.push(fin(x) ? +x.toFixed(v[4] + 2) : ''); }
+    lines.push(row.join(','));
+  }
+  download(new Blob([lines.join('\n')], {type: 'text/csv'}), ($('fileInfo').textContent.split(':')[0] || 'voo').replace(/\.[^.]+$/, '') + '_telemetria.csv');
+}
+
+/* ------------------------------------------------- gráficos e trajetória */
+function series(key, t0, t1, maxPts = 900) {
+  const ts = [], vs = [];
+  if (MODE === 'rep' && REP.cols) {
+    const a = idxAt(t0), b = idxAt(t1) + 1, step = Math.max(1, Math.floor((b - a) / maxPts)), col = REP.cols[key];
+    for (let i = a; i < b; i += step) { ts.push(REP.cols.t[i]); vs.push(col[i]); }
+  } else {
+    const S = LIVE.samples; let i = S.length - 1;
+    if (i < 0) return {ts, vs};
+    while (i > 0 && S[i - 1].t >= t0) i--;
+    const step = Math.max(1, Math.floor((S.length - i) / maxPts));
+    for (; i < S.length; i += step) { ts.push(S[i].t); vs.push(S[i][key]); }
+  }
+  return {ts, vs};
+}
+function fitCanvas(cv) {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const w = Math.max(10, Math.round(r.width * dpr)), h = Math.max(10, Math.round(r.height * dpr));
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return [ctx, r.width, r.height];
+}
+function buildCharts() {
+  const opts = VARS.map(v => `<option value="${v[0]}">${v[1]}${v[2] ? ` (${v[2]})` : ''}</option>`).join('');
+  $('charts').innerHTML = CFG.charts.map((k, i) => `<div class="plate chart"><select id="cs${i}" aria-label="Variável do gráfico ${i + 1}">${opts}</select><canvas id="cv${i}"></canvas></div>`).join('');
+  CFG.charts.forEach((k, i) => { $('cs' + i).value = VAR[k] ? k : 'h'; $('cs' + i).onchange = e => { CFG.charts[i] = e.target.value; saveCfg(); }; });
+}
+function drawChart(i, Tnow) {
+  const key = CFG.charts[i], v = VAR[key] || VAR.h, [ctx, W, H] = fitCanvas($('cv' + i));
+  ctx.clearRect(0, 0, W, H);
+  const t1 = Tnow, t0 = t1 - CFG.win, {ts, vs} = series(key, t0, t1);
+  let lo = Infinity, hi = -Infinity;
+  for (const x of vs) if (fin(x)) { const y = x * v[3]; if (y < lo) lo = y; if (y > hi) hi = y; }
+  ctx.font = '11px B612, system-ui'; ctx.fillStyle = '#8f99a6';
+  if (!fin(lo)) { ctx.fillText('sem dados para esta variável', 10, H / 2); return; }
+  if (hi - lo < 1e-6) { hi += 1; lo -= 1; }
+  const pad = (hi - lo) * 0.1; lo -= pad; hi += pad;
+  const X = t => 44 + (t - t0) / (t1 - t0) * (W - 50), Y = y => 8 + (1 - (y - lo) / (hi - lo)) * (H - 22);
+  ctx.strokeStyle = '#2f353c'; ctx.lineWidth = 1;
+  for (let k = 0; k <= 3; k++) { const y = lo + (hi - lo) * k / 3, py = Y(y); ctx.beginPath(); ctx.moveTo(44, py); ctx.lineTo(W - 6, py); ctx.stroke(); ctx.fillText(nf(y, Math.abs(hi - lo) < 5 ? 2 : 0), 2, py + 4); }
+  ctx.fillText(`${nf(t0, 0)} s`, 44, H - 3); ctx.textAlign = 'right'; ctx.fillText(`${nf(t1, 0)} s`, W - 6, H - 3); ctx.textAlign = 'left';
+  ctx.strokeStyle = '#62c3f5'; ctx.lineWidth = 1.6; ctx.beginPath(); let pen = false;
+  for (let k = 0; k < ts.length; k++) { const y = vs[k] * v[3]; if (!fin(y)) { pen = false; continue; } const px = X(ts[k]), py = Y(y); pen ? ctx.lineTo(px, py) : ctx.moveTo(px, py); pen = true; }
+  ctx.stroke();
+  const last = vs.length ? vs[vs.length - 1] * v[3] : NaN;
+  ctx.fillStyle = '#e6e9ed'; ctx.textAlign = 'right'; ctx.fillText(`${nf(last, v[4])} ${v[2]}`, W - 8, 18); ctx.textAlign = 'left';
+}
+function drawTrack(cur, Tnow) {
+  const [ctx, W, H] = fitCanvas($('track'));
+  ctx.clearRect(0, 0, W, H);
+  let full, upto;
+  if (MODE === 'rep' && REP.cols) { full = series('x', 0, REP.dur, 2500); full.ys = series('y', 0, REP.dur, 2500).vs; upto = Tnow; }
+  else { full = series('x', -1e9, 1e12, 2500); full.ys = series('y', -1e9, 1e12, 2500).vs; upto = Infinity; }
+  const xs = full.vs, ys = full.ys;
+  let xn = 0, xx = 0, yn = 0, yx = 0, n = 0;
+  for (let i = 0; i < xs.length; i++) if (fin(xs[i]) && fin(ys[i])) { xn = Math.min(xn, xs[i]); xx = Math.max(xx, xs[i]); yn = Math.min(yn, ys[i]); yx = Math.max(yx, ys[i]); n++; }
+  ctx.font = '11px B612, system-ui'; ctx.fillStyle = '#8f99a6';
+  if (n < 2) { ctx.fillText('A trajetória aparece quando chegam posições do GNSS.', 12, H / 2); return; }
+  const span = Math.max(xx - xn, yx - yn, 40) * 1.15, sc = Math.min(W, H) / span;
+  const cx = W / 2 - ((yn + yx) / 2) * sc, cy = H / 2 + ((xn + xx) / 2) * sc;
+  const P = (x, y) => [cx + y * sc, cy - x * sc];
+  // grade de 50/100 m
+  const g = span > 600 ? 200 : span > 250 ? 100 : 50;
+  ctx.strokeStyle = '#2a2f35'; ctx.lineWidth = 1;
+  for (let e = Math.floor(yn / g) * g - g * 3; e <= yx + g * 3; e += g) { const [px] = P(0, e); ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke(); }
+  for (let nn = Math.floor(xn / g) * g - g * 3; nn <= xx + g * 3; nn += g) { const [, py] = P(nn, 0); ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke(); }
+  ctx.fillText(`grade ${g} m`, 8, H - 6);
+  // caminho completo (apagado) e percorrido (linha magenta)
+  ctx.lineWidth = 1.2; ctx.strokeStyle = '#6a5266'; ctx.beginPath();
+  xs.forEach((x, i) => { if (!fin(x)) return; const [px, py] = P(x, ys[i]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); ctx.stroke();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#d65db1'; ctx.beginPath();
+  for (let i = 0; i < xs.length && full.ts[i] <= upto; i++) { if (!fin(xs[i])) continue; const [px, py] = P(xs[i], ys[i]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+  ctx.stroke();
+  const [hx, hy] = P(0, 0); ctx.fillStyle = '#e6e9ed'; ctx.beginPath(); ctx.arc(hx, hy, 3.5, 0, 7); ctx.fill(); ctx.fillText('origem', hx + 6, hy - 6);
+  if (cur && fin(cur.x)) {   // aeronave
+    const [ax, ay] = P(cur.x, cur.y), a = cur.psi;
+    ctx.save(); ctx.translate(ax, ay); ctx.rotate(a); ctx.fillStyle = '#ffd400';
+    ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(6, 7); ctx.lineTo(0, 3); ctx.lineTo(-6, 7); ctx.closePath(); ctx.fill(); ctx.restore();
+    if (fin(cur.wspd) && cur.wspd > 0.3) {   // vetor de vento
+      const L2 = 14 + cur.wspd * 4, wa = cur.wdir * D2R + Math.PI;
+      ctx.strokeStyle = '#62c3f5'; ctx.lineWidth = 1.6; ctx.beginPath(); const bx = W - 30, by = 30;
+      ctx.moveTo(bx - Math.sin(wa) * L2 / 2, by + Math.cos(wa) * L2 / 2); ctx.lineTo(bx + Math.sin(wa) * L2 / 2, by - Math.cos(wa) * L2 / 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(bx + Math.sin(wa) * L2 / 2, by - Math.cos(wa) * L2 / 2, 2.5, 0, 7); ctx.fillStyle = '#62c3f5'; ctx.fill();
+      ctx.fillStyle = '#8f99a6'; ctx.textAlign = 'right'; ctx.fillText(`vento ${nf(cur.wspd)} m/s`, W - 8, 58); ctx.textAlign = 'left';
+    }
+  }
+  ctx.fillStyle = '#8f99a6'; ctx.fillText('N', W / 2 - 3, 12);
+}
+
+/* ------------------------------------------------------- painéis de dados */
+const row = (k, v, u = '', cls = '') => `<dt>${k}</dt><dd class="${cls}">${v}${u ? `<i>${u}</i>` : ''}</dd>`;
+function buildBars() {
+  const names = ['Ail', 'Prof', 'Acel', 'Leme'];
+  $('rc').innerHTML = Array.from({length: 16}, (_, i) => `<div class="bar"><span id="rcl${i}">${i < 4 ? names[i] : 'CH' + (i + 1)}</span><div class="tr"><i id="rcb${i}"></i></div></div>`).join('');
+  $('defl').innerHTML = CFG.flx.map((f, i) => `<div class="bar"><span id="dfl${i}">${f.n}</span><div class="tr"><i id="dfb${i}"></i></div></div>`).join('');
+  $('health').innerHTML = DEVICES.map((d, i) => `<div class="dev" id="dev${i}">${d}</div>`).join('') + '<div class="dev" id="dev11">FIX 3D</div>';
+}
+function setBar(el, frac) {
+  const f = cl(frac, -1, 1);
+  el.style.left = (f >= 0 ? 50 : 50 + f * 50) + '%'; el.style.width = Math.abs(f) * 50 + '%';
+}
+function light(id, cls, txt) { const e = $(id); e.className = 'lt' + (cls ? ' ' + cls : ''); e.querySelector('span').textContent = txt; }
+function updatePanels(s, Tnow) {
+  const fst = MODE === 'rep' ? statusAt(REP.fstat, Tnow) : (performance.now() - LIVE.fstatT < 5000 ? LIVE.fstat : null);
+  const gst = MODE === 'rep' ? statusAt(REP.gstat, Tnow) : (performance.now() - LIVE.gstatT < 5000 ? LIVE.gstat : null);
+  // ---- anunciadores
+  if (fst) {
+    // mesmas cores do LED RGB da placa de voo (Tabela de sinalização do TG)
+    const c = [null, 'b', 'b', 'a', 'a', 'g', 'r', 'r'][fst.state];
+    light('aFlt', c, FLIGHT_STATES[fst.state] ?? '?');
+    light('aGnss', fst.fix >= 3 ? 'g' : 'a', fst.fix >= 3 ? `3D, ${fst.numsv} sat` : `sem fix, ${fst.numsv} sat`);
+    light('aSd', fst.fault & (1 << 10) ? 'r' : (fst.flags & 1 ? 'g' : ''), fst.flags & 1 ? `gravando ${fst.file ? 'FLT_' + String(fst.file).padStart(4, '0') : ''}` : 'parado');
+    const nf2 = [...DEVICES.keys()].filter(i => fst.fault & (1 << i));
+    light('aFault', nf2.length ? 'r' : 'g', nf2.length ? nf2.map(i => DEVICES[i]).join(', ') : 'nenhuma');
+  } else ['aFlt', 'aGnss', 'aSd', 'aFault'].forEach(id => light(id, '', MODE === 'rep' && REP.kind === 'voo' ? 'só no GND' : 'sem dados'));
+  if (gst) light('aGs', [null, 'a', 'a', 'g', 'g', 'a', 'r', 'r'][gst.state], GS_STATES[gst.state] ?? '?');
+  else light('aGs', '', 'sem dados');
+  if (s) {
+    const age = MODE === 'rep' ? 0 : (performance.now() - LIVE.lastPkt) / 1000;
+    if (MODE !== 'rep' && LIVE.samples.length) light('aLink', age < 0.5 ? 'g' : age < 2 ? 'a' : 'r', age < 2 ? (fin(s.lora_rssi) ? `${nf(s.lora_rssi, 0)} dBm` : 'cabo') : `sem dados há ${nf(age, 0)} s`);
+    else light('aLink', fin(s.lora_rssi) ? (s.lora_snr > 0 ? 'g' : 'a') : '', fin(s.lora_rssi) ? `${nf(s.lora_rssi, 0)} dBm` : '—');
+    const lq = s.LQUL;
+    light('aRc', fin(lq) && lq > 0 ? (lq >= 80 ? 'g' : lq >= 50 ? 'a' : 'r') : '', fin(lq) && lq > 0 ? `LQ ${lq} %` : '—');
+    const cv = s.cellM;
+    light('aBat', fin(cv) && s.Um > 1 ? (cv >= 3.6 ? 'g' : cv >= 3.4 ? 'a' : 'r') : '', fin(cv) && s.Um > 1 ? `${nf(cv, 2)} V/cél` : '—');
+  }
+  if (!s) return;
+  // ---- ar e atmosfera
+  $('dAir').innerHTML = row('Indicada (EAS)', nf(s.eas), 'm/s') + row('Verdadeira V∞', `${nf(s.Vinf)}`, 'm/s') +
+    row('Pressão dinâmica', nf(s.q, 0), 'Pa') + row('Mach', nf(s.mach, 3)) + row('Pressão estática', nf(s.P / 100, 1), 'hPa') +
+    row('Temperatura', nf(s.T), '°C') + row('Densidade', nf(s.rho, 3), 'kg/m³') + row('Altitude-pressão', nf(s.hp, 0), 'm') +
+    row('Altitude-densidade', nf(s.hd, 0), 'm', s.hd > 1500 ? 'warn' : '') + row('Desvio da ISA', (s.isa > 0 ? '+' : '') + nf(s.isa), '°C');
+  // ---- desempenho
+  $('dPerf').innerHTML = row('Fator de carga', nf(s.nz, 2), 'g', Math.abs(s.nz) > 2.5 ? 'warn' : '') + row('Ângulo de ataque (est.)', nf(s.alpha), '°') +
+    row('Trajetória γ', nf(s.gamma), '°') + row('Velocidade vertical', nf(s.vz, 2), 'm/s') +
+    row('Coef. de sustentação', fin(s.CL) ? nf(s.CL, 3) : (CFG.mass > 0 ? '—' : 'defina m e S')) +
+    row('Altura de energia', nf(s.Eh), 'm') + row('Potência excedente', nf(s.Ps, 2), 'm/s') +
+    row('Taxa de curva', nf(s.turn), '°/s') + row('Raio de curva', nf(s.radius, 0), 'm');
+  // ---- energia
+  $('dEn').innerHTML = row('Propulsão', `${nf(s.Um, 2)} V / ${nf(s.Im, 1)} A`) + row('Potência da propulsão', nf(s.Pm, 0), 'W') +
+    row('Por célula', nf(s.cellM, 2), 'V', s.cellM < 3.4 ? 'bad' : s.cellM < 3.6 ? 'warn' : '') +
+    row('Consumido', `${nf(s.Qm, 0)} mAh / ${nf(s.Em, 1)} Wh`) + row('Comando', `${nf(s.Uc, 2)} V / ${nf(s.Ic, 2)} A`) +
+    row('Potência do comando', nf(s.Pc, 1), 'W') + row('Consumido (comando)', nf(s.Qc, 0), 'mAh') +
+    row('Potência útil / elétrica', fin(s.etaP) ? nf(100 * s.etaP, 0) + ' %' : (CFG.mass > 0 ? '—' : 'defina m'));
+  // ---- enlaces
+  const hist = MODE === 'rep' ? null : LIVE.gsHist;
+  let per = NaN;
+  if (hist && hist.length > 1) { const a = hist[0], b = hist[hist.length - 1], dOk = b.ok - a.ok, dL = b.lost - a.lost; per = dOk + dL > 0 ? 100 * dL / (dOk + dL) : NaN; }
+  else if (gst) per = gst.rxOk + gst.lost > 0 ? 100 * gst.lost / (gst.rxOk + gst.lost) : NaN;
+  $('dLink').innerHTML = row('LoRa RSSI', nf(s.lora_rssi, 1), 'dBm') + row('LoRa SNR', nf(s.lora_snr, 1), 'dB') +
+    row('Perda de pacotes', fin(per) ? nf(per, 1) + ' %' : '—', '', per > 10 ? 'bad' : per > 3 ? 'warn' : '') +
+    row('Taxa recebida', MODE === 'rep' ? '—' : nf(LIVE.rate, 0), 'pkt/s') +
+    row('ER8 RSSI 1 / 2', `${nf(s.RSSI1, 0)} / ${nf(s.RSSI2, 0)}`, 'dBm') + row('ER8 LQ subida / descida', `${nf(s.LQUL, 0)} / ${nf(s.LQDL, 0)}`, '%') +
+    row('ER8 SNR', nf(s.SNR, 0), 'dB') + row('Potência do rádio', nf(s.TXPWR, 0), 'mW');
+  // ---- navegação
+  $('dNav').innerHTML = row('Norte', nf(s.x), 'm') + row('Leste', nf(s.y), 'm') + row('Altura', nf(s.h), 'm') + row('Distância', nf(s.dist, 0), 'm') +
+    row('Vel. solo', nf(s.gs), 'm/s') + row('Rumo', fin(s.trk) ? nf(s.trk, 0) + '°' : '—') +
+    row('Vento', fin(s.wspd) ? `${nf(s.wspd)} m/s` : '—') + row('De', fin(s.wdir) ? nf(s.wdir, 0) + '°' : '—') +
+    (fin(s.lat) ? row('Latitude', s.lat.toFixed(6) + '°') + row('Longitude', s.lon.toFixed(6) + '°') : '');
+  // ---- comandos e deflexões
+  for (let i = 0; i < 16; i++) { const v = s['ch' + (i + 1)]; setBar($('rcb' + i), fin(v) ? (v - 1500) / 500 : 0); $('rcl' + i).title = fin(v) ? `${Math.round(v)} µs` : ''; }
+  for (let i = 0; i < 4; i++) { const d = s['d' + (i + 1)]; setBar($('dfb' + i), fin(d) ? d / 30 : 0); $('dfl' + i).textContent = `${CFG.flx[i].n} ${fin(d) ? nf(d) + '°' : ''}`; }
+  // ---- sistema
+  for (let i = 0; i < 12; i++) {
+    const e = $('dev' + i);
+    e.className = 'dev' + (fst ? ((fst.fault >> i) & 1 ? ' bad' : ((fst.present >> i) & 1 ? ' ok' : '')) : '');
+  }
+  $('sysNote').textContent = fst ? `firmware build ${fst.build}` : '';
+  let html = '';
+  if (fst) html += row('Placa de voo', FLIGHT_STATES[fst.state]) + row('Tarefa IMU (média / máx.)', `${fst.execAvg} / ${fst.execMax}`, 'µs', fst.execMax > 500 ? 'bad' : '') +
+    row('Cartão: registros', fst.records.toLocaleString('pt-BR')) + row('Cartão: descartados', fst.dropped.toLocaleString('pt-BR'), '', fst.dropped ? 'warn' : '') +
+    row('Buffer PSRAM', fst.ring + ' %') + row('Pacotes não transmitidos', fst.txSkipped);
+  if (gst) html += row('Estação de solo', GS_STATES[gst.state]) + row('Recebidos / CRC / perdidos', `${gst.rxOk} / ${gst.crc} / ${gst.lost}`) +
+    row('Repassados por USB', gst.fwd.toLocaleString('pt-BR')) + row('Cartão da estação', gst.flags & 1 ? `GND_${String(gst.file).padStart(4, '0')}, ${(gst.sdBytes / 1048576).toFixed(1)} MiB` : (gst.flags & 2 ? 'pronto' : 'ausente'));
+  $('dSys').innerHTML = html || '<dt>Sem pacotes de estado.</dt><dd></dd>';
+}
+
+/* --------------------------------------------------------------- laço */
+let lastPanels = 0;
+function current() {
+  if (MODE === 'rep') return repSample(REP.T);
+  return LIVE.samples.length ? LIVE.samples[LIVE.samples.length - 1] : null;
+}
+function loop(now) {
+  if (MODE === 'rep' && REP.playing) {
+    REP.T += (now - playLast) / 1000 * parseFloat($('sp').value);
+    if (REP.T >= REP.dur) { if ($('lp').checked) REP.T = 0; else { REP.T = REP.dur; setPlay(false); } }
+  }
+  playLast = now;
+  const s = current();
+  updateInstruments(s);
+  if (now - lastPanels > 110) {
+    lastPanels = now;
+    const Tnow = MODE === 'rep' ? REP.T : (s ? s.t : 0);
+    if (MODE === 'rep') { $('sl').value = REP.T; $('tm').textContent = `${nf(REP.T, 2)} / ${nf(REP.dur, 0)} s`; }
+    if (now - LIVE.rateT > 1000) { LIVE.rate = LIVE.rateCount * 1000 / (now - LIVE.rateT); LIVE.rateCount = 0; LIVE.rateT = now; if (recChunks) updateRecBtn(); }
+    if (MODE === 'nom') $('liveInfo').textContent = LIVE.samples.length ? `${nf(LIVE.rate, 0)} pkt/s, ${LIVE.samples.length.toLocaleString('pt-BR')} pacotes no histórico` + (demo.timer ? ' (demonstração)' : '') :
+      (port || demo.timer ? 'Aguardando pacotes…' : 'Conecte a estação de solo (porta USB) ou a placa de voo (porta UART, bancada), ou rode o voo de demonstração.');
+    updatePanels(s, Tnow);
+    for (let i = 0; i < CFG.charts.length; i++) drawChart(i, Tnow);
+    drawTrack(s, Tnow);
+  }
+  requestAnimationFrame(loop);
+}
+
+/* -------------------------------------------------------------- modos */
+function setMode(m) {
+  MODE = m;
+  $('mNom').setAttribute('aria-pressed', m === 'nom'); $('mRep').setAttribute('aria-pressed', m === 'rep');
+  $('ctlNom').hidden = m !== 'nom'; $('ctlRep').hidden = m !== 'rep';
+  $('trNom').hidden = m !== 'nom'; $('trRep').hidden = m !== 'rep';
+  if (m === 'rep') stopDemo(); else setPlay(false);
+}
+$('mNom').onclick = () => setMode('nom');
+$('mRep').onclick = () => setMode('rep');
+$('bConn').onclick = connectSerial;
+$('bDemo').onclick = () => demo.timer ? stopDemo() : startDemo();
+$('bRec').onclick = toggleRec;
+$('bGsRec').onclick = () => sendCmd('MODE REC');
+$('bGsStop').onclick = () => sendCmd('MODE RX');
+$('file').onchange = e => openFile(e.target.files[0]);
+$('bExport').onclick = exportCsv;
+$('pp').onclick = () => setPlay(!REP.playing);
+$('sl').oninput = e => { REP.T = +e.target.value; };
+addEventListener('keydown', e => { if (e.code === 'Space' && MODE === 'rep' && REP.cols && !['INPUT', 'SELECT', 'BUTTON'].includes(e.target.tagName)) { e.preventDefault(); setPlay(!REP.playing); } });
+['dragenter', 'dragover'].forEach(n => addEventListener(n, e => { e.preventDefault(); document.body.classList.add('drag'); }));
+['dragleave', 'drop'].forEach(n => addEventListener(n, e => { e.preventDefault(); document.body.classList.remove('drag'); }));
+addEventListener('drop', e => openFile(e.dataTransfer.files[0]));
+
+// ajustes
+$('bCfg').onclick = () => {
+  const f = $('cfgForm');
+  for (const k of ['mass', 'wing', 'cellsM', 'cellsC', 'oat', 'win', 'stallKt', 'vneKt']) f.elements[k].value = CFG[k];
+  CFG.flx.forEach((x, i) => { f.elements['fn' + i].value = x.n; f.elements['fv' + i].value = x.v0; f.elements['fk' + i].value = x.k; });
+  $('dlg').showModal();
+};
+$('dlg').addEventListener('close', () => {
+  const r = $('dlg').returnValue, f = $('cfgForm');
+  if (r === 'zero') {
+    const s = current();
+    if (s) { CFG.flx.forEach((x, i) => { if (fin(s['flx' + (i + 1)])) x.v0 = +s['flx' + (i + 1)].toFixed(5); }); consoleLine('Deflexões zeradas com as tensões atuais.'); }
+  } else if (r === 'ok') {
+    for (const k of ['mass', 'wing', 'cellsM', 'cellsC', 'win', 'stallKt', 'vneKt']) { const v = parseFloat(String(f.elements[k].value).replace(',', '.')); if (fin(v)) CFG[k] = v; }
+    CFG.oat = f.elements.oat.value.trim();
+    CFG.flx = CFG.flx.map((x, i) => ({n: f.elements['fn' + i].value || x.n, v0: parseFloat(f.elements['fv' + i].value) || x.v0, k: parseFloat(f.elements['fk' + i].value) || x.k}));
+  } else return;
+  saveCfg(); buildPanel(); buildBars();
+  if (MODE === 'rep' && REP.cols) consoleLine('Ajustes salvos. Reabra o arquivo para recalcular os parâmetros derivados de todo o voo.');
+});
+
+buildCharts(); buildBars(); setMode('nom');
+requestAnimationFrame(loop);
+consoleLine('Pronto. Modo nominal: conecte a porta serial ou rode a demonstração. Modo replay: abra um arquivo de voo.');
+</script>
+</body>
+</html>
