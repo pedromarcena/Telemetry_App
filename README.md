@@ -1,64 +1,11 @@
 # Telemetry_App
 
-<pre style="color: green; font-weight: bold">
-                **            **                                                                    
-                ##*          *##*                                                                   
-                ####*        *#*##*+                                                                
-                ##=*##*      *#= +#####**+***##########*+                                           
-                ##*  *###***+*#*    +********#**********####****#***#***#****                       
-                *#*     *#######+                          *#####***##*#**######*                   
-                 ##*                       +**###########*                    +*##*+                
-          **     *##*                   *#####*        +##                       *##+               
-          *##*    *##*                      **######*###**                        *##               
-          *######****##*                           ++                              *#*              
-          *##  ***####**                                                           ###              
-           *##*                                                    **###########** *##*             
-            *###*+                                              +###***        *###*##*             
-              *######*+                                      **###*              *####              
-           *###***                                          **#######**+          *##*              
-        **##*                                                       ***####*+      *#               
-      +##**                                                      =*###########+    **               
-     *##*                                                    *####***+#+#*#####*                    
-    *########*                                             *##*               ***                   
-   *****   **###*                                        *##*                                       
-          *###**                                        *#*                                         
-       *###*                                           ##*                                          
-     *##*+                                            *#*                                           
-    ##########+                                      *##*                                          =
-  *###**+*##*      **                                ###                                          **
- *#*    *#**      **                                 ##*                                         ** 
-**    +##*      +##+      *                          ###                                        *#* 
-     +##*      +##*       *                           ##*                                      ##*  
-    *##*      +##*       **                           +#*                                    *###*  
-   *##*      *###        #*        +                   ##*                                 *####*   
-  *##+       *##*       *#*        +*                   *#*+                             *###*##    
- *##+       *###        ##+        **                    +##*                          *###=*##     
- *#*       *###*       *##+        ##                      *##**                   +####*  +##+     
- +##*      *###        *##+        *##         +             *####*+**       ***#####*    *##*      
-  +##*    +###*        ###+        +#*         #+                *+############***       +##*       
-    ##*   *###*       +###*        +##*         #*+                                     *##*        
-     *#* *####        *###*        +##*         ###*                                   *#*+         
-      *##*#*##        *####        +###*         *###*                               *##*           
-        ###*##        *#*##*        ####+         *####*                            ###*            
-         ***#*        *####*        *#*##=         *##*##*                       +*##*              
-           *###       *##*#*         ##*##          *##+*##*                    *##*                
-             +*##*    +##+##+        *#**##+          *##***##*+             **#**                  
-                *##*=  ## ##*         *##*##+           *##* *####*+       *##*+                    
-                  **##**#**##+         *#*+*#**           *##*+  **####**###*                       
-                     *####**#*          *## +##*            +###**    +***                          
-                         *+ ###*         *##* *##*             *####*                               
-                             **#####***** **##* *##*+ **+***#####*                                  
-                                  ****##########* **#####*#** 
-                                
-                       for: Harpia Aerodesign - by: Pedro Martinez Marcena
-</pre>
-
 Aplicativo de visualização da **estação de telemetria Harpia AeroDesign (UFABC)**. Um único arquivo HTML, sem instalação: abre no Chrome ou no Edge, conecta-se à estação de solo pela porta USB (Web Serial) e mostra os seis instrumentos básicos, os parâmetros calculados a partir do pacote de 1024 bits, gráficos, trajetória, comandos, superfícies e a saúde de cada dispositivo. Também reproduz os arquivos gravados pela placa de voo, pela estação ou pelo próprio aplicativo.
 
 | Repositório | Função |
 |---|---|
-| [Flight_Data_Acquisition_and_Transmission_Unit](../Flight_Data_Acquisition_and_Transmission_Unit) | placa de voo |
-| [Ground_Station](../Ground_Station) | estação de solo |
+| [Flight_Data_Acquisition_and_Transmission_Unit](https://github.com/pedromarcena/Flight_Data_Acquisition_and_Transmission_Unit) | placa de voo |
+| [Ground_Station](https://github.com/pedromarcena/Ground_Station) | estação de solo |
 | **Telemetry_App** (este) | aplicativo de visualização |
 
 ## Como usar
